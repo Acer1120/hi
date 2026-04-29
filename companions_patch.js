@@ -1,26 +1,16 @@
+ then f// =============================================================================
+// FINAL COMPANION PATCH — SATYR + DAGGER + SPEAR (v6)
 // =============================================================================
-// FINAL DAGGER + SPEAR + SATYR COMPANION PATCH (v4)
-// =============================================================================
-// Two combo characters from the SAJIUA WEAPON Series asset packs:
-//   - Dagger: fast 3-hit combo skirmisher
-//   - Spear:  3-hit combo + GROUND-STRIKE alt (spear erupts from floor under enemy)
+// Three combo/skirmisher characters. Self-contained — no prior satyr work
+// required in the codebase.
+//   - Satyr:  hit-and-run skirmisher (32x32 SAJIUA crimson imp)
+//   - Dagger: fast 3-hit combo skirmisher (80x80 SAJIUA Astra Dagger)
+//   - Spear:  3-hit combo + GROUND-STRIKE alt (144x144 SAJIUA Astra Spear)
 //
-// Plus support for an existing satyr companion + general HP-bar tuning.
-//
-// CHANGES IN v4 (final pass):
-//   - Spear range attack is now a GROUND-STRIKE effect (NOT an arrow). A spear
-//     erupts from the floor beneath the target, deals damage at apex, then
-//     dissolves. Uses SAJIUA's Range_Attack_Particle_IN.png (rising spear) and
-//     Range_Attack_Particle_OUT.png (dissipation) sprites.
-//   - Shop upgrade "Spear: Star Strike" widens the strike to AoE — hits up to
-//     3 enemies in a 6u radius around the aim point.
-//   - All companions scaled DOWN once more (satyr 4->3, dagger 14->11, spear 18->14).
-//   - HP bars tuned per-companion via cfg.barYOffset. Lancer was using
-//     scale*0.55 (4.95u) which floated the bar above the head; now 2.1u.
-//   - Combo chain interrupts cleanly when no follow-up target is in melee
-//     range (resets to step 0 instead of resuming mid-chain).
-//   - Mid-chain combo cooldown is 0 (continuous chain), only the finisher
-//     pays recovery + skirmish backoff.
+// SPEAR RANGE ATTACK is NOT an arrow — a spear erupts from the floor under the
+// target. The cast animation is the full 24-frame Range_Attack.png. The strike
+// effect uses Range_Attack_Particle_IN.png (rising) + Range_Attack_Particle_OUT.png
+// (dissolving). Shop upgrade widens the strike to AoE (3 enemies in 6u radius).
 //
 // SPRITE MATH:
 //   Three.js Sprites position by their CENTER. To lock feet to world y=0:
@@ -28,17 +18,25 @@
 //   To put HP bar just above the character\'s head:
 //     barYOffset = (head_offset_above_center / frame_height) * scale + 0.3
 //
-//   Dagger (80x80, char rows 30-47): baseY=(7/80)*11=0.9625, barYOffset=(10/80)*11+0.3=1.675
-//   Spear (144x144, char rows 55-79): baseY=(7/144)*14=0.681, barYOffset=(17/144)*14+0.3=1.953
-//   Satyr (32x32, char rows 8-26): baseY=(10/32)*3=0.9375, barYOffset=(8/32)*3+0.3=1.05
+//   Satyr (32x32, char rows 8-26):  baseY = (10/32)*3 = 0.9375
+//                                   barYOffset = (8/32)*3 + 0.3 = 1.05
+//   Dagger (80x80, char rows 30-47): baseY = (7/80)*11 = 0.9625
+//                                    barYOffset = (10/80)*11 + 0.3 = 1.675
+//   Spear (144x144, char rows 55-79): baseY = (7/144)*14 = 0.681
+//                                     barYOffset = (17/144)*14 + 0.3 = 1.953
 //
 // =============================================================================
 
 
 // ----- LOC 1 — SHEETS --------------------------------------------------------
 // File: game.html, top of the SHEETS object (right after `const SHEETS = {`).
-// 5 dagger + 10 spear + 2 spear-particle sheets. Total ~80KB base64.
+// 5 satyr + 8 dagger + 10 spear + 2 spear-particle sheets. Total ~85KB base64.
 
+  satyrIdle: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAAAgCAYAAABEmHeFAAADIUlEQVR42u2bv2vbQBTH3yk1FA8NmBRnsXHo4GaJJ0+mQwdtBQ+dMxQC3TPlT8jUsVDw1tmDoZuHTp48tRRMh9bFhtLQYmihJtQIdQjnnC46SZbu3sny+4CH/OL77r3v9yRdbACCIAiCIAiCIAiCIIg88+DhI5+6QBSaTqPpx4XAVhAogDu+A2LpdxpN31YQKICWC7A9gDwZwGYIdjaAeTCAzQFsqq+rBpWe6vuivq0+bGsAWdJhjL59ZnFXgz8/vzDTYVTVYbqGMP1+yw00fbwow+vrT1pqkPVkE5zv1+/8DdfP2odOo+mH9Vk1A9l8JmZgav4sjwZMOgBTBhTNltSA40UZ2pWl1hDEBUGsQbd+3gMozx4A4MX3rxtrM90GBAC4nA/Qd0BsAz7xHkO7sgysW0RXD+Q59Fuu/+r3DEU/av2m+48VQGbCgBgDEGuwYUAeAhW61i/DNx0eApP6ces33X+MKyAjA6YzIF9zbzW98ztnpSNjNeRNf9sD6CQpQCxCTt3LqyvoraaBFwDARa2b+URA9bxxvl9fm1/W1qmvgu82vdUUhqde4GfDUy/UlEXSFzHZ/7j5jxfl2CBmCkBcAbtoAN7wrI3fVv2iBdDJ0oBdNIB8aXXf7kHU10XTL1oANw7A8w9DJjZg1wwg1sDvtcPuwU09g9jWL1oAHTJA+hralSW8qVbhrHS0rkVVkyl9ro2pX6QAOttuAFv6/Zbryw9hWNoi4q0opr7N/usM4L2sBpCFsbCpL2pP4PYedLSaQadUh2PYQ6vhRt+zpm9r/pfzAeu3XL8N1cCR8KY1ODoWPwEPJnDz8CEaAqv52PqirsxoNYMJeEaPYYPmx9eXeyC+sE6AdF2BHR3m443HGIC8+2Lr8wewqKC9v56gBhFbXxVAPgPTaw/zQNoN0Ekz/KgdkA/A9ClAnAGx4cPHIMp8nMH8HbOlb7r/YSdA8gaYlFRNuqh1ffnel/PP+wtP7x8bHYBtfQCAbu2Zr9I3+bZw0r/9J5d89ef8+vGRoexEB4cn/sHhyboR2B+RI33St6lPEARBEARBEARBEFvFfzzJ9P3XKgYYAAAAAElFTkSuQmCC", n: 6, fps: 7, loop: true },
+  satyrWalk: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAAgCAYAAAD9qabkAAAEhklEQVR42u1cv0tbURQ+N61QMiiIohQUrYMWiqFDJlHokNmhQ+uQoSAUOjoU/wSh1FEoBDo4OGUIdHMTMmVqUURoG0mgVFoCFirS8Hidjtx3c1/yXnLPvdd4Pgj4+zvfOec7576XRAAGg8FgMBgMBoPBYDAYDAaDwWAwGAyvMDq5EN5lfgZj6LEytxj2MiGlEX3mv6sDyLZutQa8eCwHsjK3GLo0os/81API1yVgW7daA5v8TvW73oBpjGhjG/vKb7MOLgZOnHYXg8AFP6V+kVR09fxM9GqKP7++CVOCdXxxsahJGDQO5JfjUAuwNTbb8Xu1VhYAAHaaFWFTP0UNusVCxdVPL9rUrYuhnCuEAADPPx+K26hfDEJOPQRkPtWA1fMzgclXDbh3fWx0CMTFIQ+BWisL+fEro0Ogm37KAZR28FIMgiQGHJ1cCD8+fAQAAK9+fCcZAmlqYDL/SfTL/d+vfuHjBk5SBF3yTRowLg/lXCHcvWxECoCcMkyZ0KV+lxu4lwG7LQDqAbgytxja6j9q/cLXDdzLgLIJKA2oAjXvXjZgNViCUrve8TObI/NklwK29PuwgZP0opwDigGo5kGuP/LXWtmOPtgcmSdfAib0CxPktjaQXADkoTRgL/5Suw6HxQAK+/duvo+fm2wAV/pdHoF9MmC3/GMNdH3w9N2J8F1/Jgm5HEC3a0/dJqIEJl7GYTHQmsIkcNi5BrV+rD3ehVZ7AZtQzcn2zLqxO+Nx95xWgyVYDZYig1jGi5dfYRhArT/TD/nW2OwN+euLCyi165GH6SbwyYB4txeHnTz1dZ/fdv2q8cu5gvb6t9SuR3qBsv4ugXVX8++iD0wgc9s2sA8GxKMVHrV1R3CqSyDb+n3bwK4NuNOsiForGznt6vogrjd805/pNwiXR2CXBpRjyI9fwYepKdgcmb+Jharwvul3WXuXBtSZD/nkHqDKv2n9qQeADxvYtQHxKJykEMOm34cjsEsDogfy41eAD1uDh0J/pt/mc72BXBoQuRGnEMApBJF7IMM6gHzYwK4NKOfe9o1vVf+geb8/SCOUc4UwD1ORp6RsFkA2IABAtd0gb4Je3JiH7Zn1kPKpUFf65drrhgD2AOUCULld4xSCSP2p829Sf2bQIGxvoDQGpDwCx3EDAPwL/g6t/l5byOZlkIsTWFz+ZexdH1t9FkTWnlZ/xlQS+g3AhAFVUBoQN9tOsyKq7Uas+ak2oOsB1G0BuLr8UnNAacBe3NS5Nz2AEg2A/YOj0NUE3D84CmV+nQF1BaA8gqp/+/fPLwIf+HLYQd+mKWt2OYDU/Nu+B6Jy2zSgTrsu/7r6710fA0X9TesXaQIpbqwJ2djdAnjz4ImRJkT+4sZax9+amF4O0YDy10cnF8JBX5fejdcnTEwvhxT64+qfZAPjpcCg9Ve58WO8v0JZfzmGuB7Q5d4GVP1yDtK+OUuknUQ4BHQFQPJnDx5DpflJUCbfZQF8GwA6E1Bt4ZO37yPbMK4HTC4A3wzoO1z9vwYGg8FgMBgMBoPBYDAYDAaD4SH+AwZAjNkrhu8CAAAAAElFTkSuQmCC", n: 8, fps: 12, loop: true },
+  satyrAttack: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAAgCAYAAAALxXRVAAAFTUlEQVR42u1aPWhbVxg9z0LFOOAUp0m62EQkkIqUmgyZTEs8aGrBQ4a2g9tCBAmlSwIpGj0aQjsWF5xJg714ECSThqQGTx5CSo0ouKhYS502JjU4pBaP1yH9Xj9fX70/3XvfS/sdEFjIT+fc7zvnu1dPAgQCgUAgEAgEAoFAIBAIBAKBQCAQCAQCgeAfjJ8+H/wfOAWC3DBz7mIQFwjXociDM+8BoOuDay1F0FDEHFivwcy5i4HrIMbx5RnEvHh1fXCtpcga8uB1WoO4INoIYV47cJEHgARR3yNX/E6COIhAJV+brgX80ZicCxqTc4GLBdNibYYw7yN4VB/yHkYuNQzisz0I0qw9K78XR77x68+ejvT2yakj/7+5N4YrEy+wuTcGAFjstbwsCya+KC1r07VA5c7KmbQJqi61yPu//+LZNF6aPpiuQ5QGlZ9w7Unbc1kL0kFeMOWHtPUnDd+9/CmRJzzTix528XkEv8gDIE/zJdWg64nNenAdqj/e998x4sOsQ4j7MQm3l9aQa9O14Ns/d8LFLve7x66rlytGwuAy+EUYAFn7cPvklJVaRGmgIeRSwyAdpEEXQFOeiKt/Vj+mFkaF39wbw3K/i/a8j1qzFL5Oz+vlylC7YF7Bz3sApOkB4cburrYWtrSo/FEabNaE6+C94N6wpYHnQOVM04ORLOQ09W1Bdwwk41P42vP+kdfa8762CMMMAK5DPWbc2N3Fcr975AEApm9CxfWBjM/rYbIWr4sGHj7S4UpDlB/j/JA6gPThmhbNdz/dc9OFthn8ogyAItWi6Bpe9/Vn2gFpW6Xt3cXxJ8/gF9VwfPLz9dNHAFvgdzjjNNg8kpMOtSekw6YGU34cySpgsdfyrky8wPdnz6JeroQNt9n4JMG33ew8B4AuALo12zZ+UTToQsi12NZgYiPKLG5tuhbobkK4uhlB/Mv9rrYAtvjpTG/7JlDWGwGujD/IA1SXP3770XO9fo4OfLR69wvfhxEThe/ARwevPgN14Dtt/Pa9UyG/C25156fg8SEw7I2Y5w9mg+cPZoMkNeB9qJcr6MA/xp/k/VQ8vnMp8ppBA7hermCmPJX6/bJ6YNDdTx4M4rfpRdLRga8N3yB+z0T4AGCj/+93MTPlKVRRsjKJOX9jaR/dR09RuXoGF64/CxtfRWnonYgX7PLdLS+Kn46gJvl1Zn3zw4de3OmjAz/kbyztY9B7JK1B5eqZsMaqBnX3ocnfgY/PJv7CtSdtT11H99HTI/VMwq/TrNZA99UD1YBf//jOpSANf9T/cg0d+Njo74TeT9r/1Abh05XvODyAh/4Bvhx910oAG5NzgWqsC9efhbyzo1UjAeAhoJCRCbmZKPw2+U0hTfh0IaQaqPWIe43/ndT86iC8fHfL44EkH3IvUB+27516Vf+b4wCAjz/Zhm6YptFA/HQ9ha+xtI/Pb544tgHRIF7stbyoIHtZQxAVvtnRqrXzd3NlPdj6+hvtznvoHwCAcX4eBDIYACysVpzwZw1klsAlDaRuMKlhy2r4JIFcWK0cOW1Q0GrNEg79A/zwxSgWVivWTmLqRrTR3wl/hML5uQ+aK+vB/KcfeEZuwgDAW2+/F/AP3PQDZVs/TOYLAYBbt76CDX5doVyvP07D3ORHQRWlsPmkY/z0+YAPgKRrMaGBDyAAaPXue9QrAEiqI41mruHhyw7eKJ0I68B7MUwdkmxEag9UH1AdTGv4z6K5sh5w8wwaAnlqiLomy7UmNJjkz/t6F72WNFrcIV1y2p6wSU1og5/WPmiNWXZZG33IwxcCgUAgEAgEAkFK/A3UkR8lIkkoRAAAAABJRU5ErkJggg==", n: 7, fps: 22, loop: false },
+  satyrHurt: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAAAgCAYAAADaInAlAAADEUlEQVR42u2YsUsjQRTG32wIQgoPBEvFYKFyhZVVOLvUFneNRbqA/R0c/glicaWVlSmsLALpUgSEVKkuCIOFKKaJGBZOOFkuLHvF8Za342yym53ZRO59TUxY9/vN997MziwAi8VisVgsFovFYrFYLBaLhapsbAXqb8urm8H/xrBI+eeeQWVjK1BBllc3gzyLsMgM8/CdSwbcCPpZmZd/ro0QZxS3HNsIYNLyl+dM0HHYbsQ0+c/qL5JCdB9uhc7864f1yPU9twQng6awEb6OQfVHff7ZFraaYBJHzy2F15vIIW3+yHDm3cDL853I3ADzHHxSBl0T2mJQOdSCfPK3I9eaYkg6CXpuCfZWXhNPRCepeffhVqD5pNBRx2sHgenQKcPVbjVAhh+/HkMGymGaQccRtwKZZEiSP60Bfibxnqk7r3arkRsfPT29uaZeLFubgar/JAabKwHloI13Pr63zoDe6Es909TAyQLRc0th8O2aH/7ervlaIBtaFAZafOTIi4F6quOftgo4WQa9t/I61xcki8Dw3sfvmOr8aqMQ+RuXPhuiO/xpDLaWf/rYUYuAHDYZMAMcPx277rvRBqAF0BXadvCLwjAa9oXaBJTFNgPeO26yJfHPBKfbiOQRPPVXTx/4zB0N+yIPf90JCABAgg/NQSu3HGatg5M1fDr4erEMEnwrx68kxUeGSnE9t+aL2/3rTiuNy+vANocEP9UkdEyGb/M9gE7qs5cWQHdUNKG4IqI3fu5AAXpuKeRoXF4HtcN9YbIJaB0kRE8cuvx13qkb4Hjt4E3x0fx8fA87UIC8dOEuhaHTwevCNxV87XA/svmS4GuXf3WTisXH/zdd/O7438uw7vgRJPjalVjnnboB8OZUaE4Hb3sfcOEuaZtNDd/GsktzQIZ6sRxuxjqejOSEDKaKH7fvQHU8GTJOa/7UDdActERz0BI4OBr4aNgXOHjbogz4zP/j/46E//H028Tuz+qv5nDm3QAAwMvzneh4EjqejDDYOAGoWePmt+NJ+HL63crYWSwWi8VisVjvXH8BCUhtyvz6BLsAAAAASUVORK5CYII=", n: 4, fps: 14, loop: false },
+  satyrDeath: { d: "data:image/png;base64,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", n: 10, fps: 12, loop: false },
   daggerIdle: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAABQCAYAAABoMayFAAADC0lEQVR42u3cwUsUYRgH4HelQ4o310QiWtRAgoQOtQgdont/QNCloFMQVFdBBG9BRdCpq+Cxg/fqZnsKikAwoeggVhJBabfpNLKrszpuxs5Oz3PbmYv8fN/vnf2+0QgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADKZ2FtNZEC9Gjz9g9UNfBfyMrPomiAyK8H1KbqSf9ANalN1ZPaVD0ZPjWZWBTzZ5eVX7tFkf3z09RH079Fza+viOFtfFjbc/3u5asqK0d2ERFZ+aVFyMH57b6WZnfr3LSQOuzf4VOTSRHz6/oC2DwVsgowK0zyP5XI7/AMkKMbIEWvv75uN++bT7/3XB+ZGI+RifGdz49eLaku+RkgPZJfL9Vf158Ab3+807YI558vtHze3vpWUXLt8/v4tlGRnwHS7fx6qf66ugBeHz9TeVp7shPm7gZO9wzsveTLb/d9+RnA3cyvFxTiF7qwtprcu3gpIiK+bG5U1t8vtQS63XgYYzdfKj75Hbn7L94l508f3xkozftYzV9/B4eq8fXzigxLll9hfqATQyPJ6wdn48rjrT33fn3/ERGhAOVngMivnAtgROsp0vLiTExfm4+ND2sxOFSNxtxo1GfXNbH8/tkAGThZy7yXDhBDpHwDuK/owT57t6y6Drn4RURMX5tvya8+uy6kfbRb/JwC5/Nlc6PSvPgtL8605NeYGy3kq0SFXQDTBk5p4M44AOlM2sDpAGnMjQqlg/4t+gAuzAKY9RKlBqbbDZzWnwFczv4t9FfgdAqbvp1l15yfDPPVGv+XY0UuyHQK12fXdzbxydfAzVsIaW6NudEYu7kirDZPfFmL4NiFGy3DQ36Hq8fm/IrYv4U5ldl9dJ6eYKbSk0yvI+T7CpK1ee9dts4zHByqRoRT4LL1b0UDl6uB9zu19JcMB9vvX4bJr3z9WyliA6fTttnPzW8KMGcDZ+XU7jry078AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQbn8AincOHFan+rAAAAAASUVORK5CYII=", n: 4, fps: 6, loop: true },
   daggerRun: { d: "data:image/png;base64,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", n: 8, fps: 14, loop: true },
   daggerDash: { d: "data:image/png;base64,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", n: 8, fps: 22, loop: false },
@@ -60,9 +58,11 @@
   spearGroundIn: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAAgCAYAAACy9KU0AAADe0lEQVR42u1cO27bQBAdGgGUO6gIYIIgIMBFKteR4Vuw8hXsxrmAG/sKKQIdIZ1hBXDnSoUDA4SgACp8B7lSGo2wYkjxs7uz3OV7gBoK4iNndx/nzY5IBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADjFbLXcgh/wFScIgf/i42oRDp0fAqzPDwEKJPORnohD54cAm+GPsJTDslxZnFgf0+v5a+U1PEzPRPi/fvn83/HFeiPCXzUOErEPjR8C5Jn4ZHESHRMhiUnomr8PAgh+M/yfsKz9QZ34qCIldU03F5dERHT185dYHMqyH0mA3xw/akAeipCuSOni7f2D3t4/6ObikuZ3567jQVmc0GK9ocV6A37P+CFAgJb1mt6+EBHRZDyiyXgkch082bM4ob8/vonHAfzm+GHBAhQJ2xZMFZr7p8e9DXNhA0+vfju1JeDX40cGZCEr6LNF63qPVaLC4sO2TKoGwRN+tlo6qYGA3ww/MiAD4iNd+O2TqM3vzml6+3KQFal1KN241MU2i5O9LXAUG/Br8CMDMpT5SGVCTXbBbPJ/f/6zVbMdrgEV+bM4iWyIT/H+uAbBT2XpjLTILw3f+SFAHXA9f91yIU79HOuPCAVcbOaM5/7p8cCC2bZharzVGoSUIKtjX8ZvWwBD44cF6+iB+5B1dbUthpASUc41oMl4lBJRLh372Wq53wZ2Mfbg1+NHBmTAA0v0YbQRFYFeoLTl8a6xjeq+4xrEw/QsMm1DmnR82+RvEhvf+SFAGjbAVR+GYxGqEpnchgiV3VeZMLFAS2wGVHFIbUSExA8LpgmJPowulir0nTlO/6UXZZNOdJvj0JZfSny68kOANH0we2CJbMa1oOwyqoMMh4vQtjOfCoEll4utbSaKhwgsmI1JemDLepIZGJu43IRYcs6cu6CLndB19RMb4tDnNyN2tYZVVrPBQ0J8PCBAjiDVhyHxJ9OWCygtE57Q4boPq6sF6msmdRL6hDANl30YbXbBHAhfXvY7E/Foco7QrQosWI/FR1KEONMp/hem2CAXmM3sJCacOemOj3oO2xlI3X2aLMLihfoeC5DrdwK77sPoUx1jV4hOq8apD9lJGwGVsLtDKDA3gZe7YGyDyo5LvJLymM8ewFPtoN+HC9E7EeLvIl1rVIyjzmJVF3vdjpR63JZIHDvv0ITpH9XKHSKkv2x7AAAAAElFTkSuQmCC", n: 9, fps: 22, loop: false },
   spearGroundOut: { d: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWAAAAAgCAYAAAAsTqKUAAADpUlEQVR42u2dMW7bMBSGnwPvPUIHQWM7ee4NxKlbtXcPeoHsQU+hXoC+gacOmdpR0FCg91CHiADDUJZjmO8ny/8DDFtWgCcx0s+fj4+yCCGEEEIIIYQQQgghhBBCCCGEkGeGaZzdCxS/W+J3wDboeCWQUtmXLkDuc9+0u9riZ4JBBu+b9sjbmJTKXekngBY+cHyzxEeJoPVeKAfe0QUTOuAMXHAt8f2YwzQaEbHDNKp1CDHBc98pO1Jf+BEjoE5EvovIPcqJD9No+6Y1wOv/Y9+0vyil9QpgV2ubr71rtXmYg9b+X9ABk9LZ3UIItIfigdAY3wkpOcAX563dDhnE77x4x3C7oo7wqW/ag3sHxP8kIl9E5EfftCc64PK4u4UIgJyw2dhOSih0yrngMPernQu2fdMendh6n63STT/Hrj/NEUDouit24p/BneD76gR47UJXFmG7sa3pwjWH/7M853y7iCu1qY8jEnc+t1/TjZMq+VDywZc6CVez+/WH/rM/+eY+a4vfMI0dy8EIiN8UYIzrjIlu0mqArVxr6lxszO2FOeAKBdEKoAJiafvD0tYHhBNf8r4ncPv/ZR9QkQMOBMeGghwTpFTxY4KbOn4mQ3Dzxu+TjkC0RyGucxum8UlEHmqehBORn2A9+FOyABe/EEPwK7F2gHgmFAPXFqmPZ2OyzWo472DCzUS+S97phXXPLIcjVQjw1k2mMAmVQ/xVAdSehMvEkaM634P/jkhB9E37Feh+hSVoFaUgnLs7c5OblA5sy11quM9LJtoUXKjvwHfe/0M9BeGVwqFSEIIS4SUF8U1EHlkHTAHWdr+1TsKZrTZJOQnniY/Lg7vj0F6M0wUjAQOYeHwAGxL4JBzFVzkFgR6CR4TXbuxP6oLD81XKwfrnamQ9J0wIyZg3i8UlAptKhC5xwIkdaC5laDZIAbxql5RCzKXIL9riCZUDXuLzYTw1OeA1gdEYfnoVAK+Gm8u227dLFd+9rtl/C/e7JXCX/E3CThEhADP4HnoHjv/IFES57K9s9FUBUrohrDcZZSLbajc94mE4gl8JePTaova0xz1YAE9C6nHAOVQCnHPgWmKAXo68MgIghNSQgkCDfhpbBvH9h+9YRP2t/ywI4KXAn0QidaUg0ETqgVVLkHJxv670a5jGmUJACAVYG/RP0sB/lJPLXwlhCgJJVc+C4BCYEAowyYQMyrCYgyXkSvb/wTlYZHCwAFL8CKEAVytATD8QQq7mHysctINnxXKRAAAAAElFTkSuQmCC", n: 11, fps: 20, loop: false },
 
+  daggerSpawn: { d: "data:image/png;base64,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", n: 18, fps: 18, loop: false },
+  spearSpawn: { d: "data:image/png;base64,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", n: 22, fps: 18, loop: false },
 
 // ----- LOC 2 — COMPANION_CFG entries ----------------------------------------
-// File: game.html, inside COMPANION_CFG. Three entries:
+// File: game.html, inside COMPANION_CFG. Three new entries:
 
   satyrAlly: {
     name: 'Satyr',
@@ -77,6 +77,7 @@
     skirmishBackoffSpeed: 9,
     barColor: 0xff4477,
     barYOffset: 1.05,
+    playHurtAnim: true,
   },
   daggerAlly: {
     name: 'Dagger',
@@ -84,6 +85,8 @@
               dash: 'daggerDash', hurt: 'daggerHurt', death: 'daggerDeath',
               attack: 'daggerAttack1' },
     comboSheets: ['daggerAttack1', 'daggerAttack2', 'daggerAttack3'],
+    spawnSheet: 'daggerSpawn',
+    playHurtAnim: true,
     scale: 11, baseY: 0.9625, shadowSize: 0.85,
     maxHp: 14, attackPower: 1,
     attackRange: 3.2, hitRange: 3.2,
@@ -103,6 +106,8 @@
               attack: 'spearAttack1' },
     comboSheets: ['spearAttack1', 'spearAttack2', 'spearAttack3'],
     rangedAttackSheet: 'spearRangeAtk',
+    spawnSheet: 'spearSpawn',
+    playHurtAnim: true,
     throwRange: 11.0,
     throwTimer: 1.0, throwHitDelay: 0.54, throwCooldown: 2.4,
     throwDamage: 2,
@@ -120,9 +125,8 @@
 
 // ----- LOC 3 — Lower HP bars on existing companions --------------------------
 // File: game.html, inside the existing companion entries (lancer, knight,
-// slime, skel, archer). Add a barYOffset line to each. The lancer's bar was
-// the most-noticed one (using scale*0.55 = 4.95u, way above the head). New
-// values put the bar just above each character\'s actual head pixel.
+// slime, skel, archer). Add a barYOffset line to each. Lancer\'s bar was
+// the most-noticed (using scale*0.55 = 4.95u, way above the head).
 
   // Add to lancer:        barYOffset: 2.1,
   // Add to knightAlly:    barYOffset: 2.1,
@@ -132,10 +136,9 @@
 
 
 // ----- LOC 4 — spawnCompanion: animMap construction --------------------------
-// File: game.html, REPLACE spawnCompanion(). The new version registers each
-// combo sheet AND the rangedAttackSheet as their own animator entries
-// (combo0, combo1, combo2, rangedAttack) so forcePlay can switch between them
-// by name — no runtime texture swap.
+// File: game.html, REPLACE spawnCompanion(). Adds combo + ranged-alt anims as
+// pre-registered animator entries (combo0, combo1, combo2, rangedAttack) so
+// forcePlay can switch between them by name with no runtime texture swap.
 
 function spawnCompanion(type, x, z) {
   const cfg = COMPANION_CFG[type];
@@ -151,6 +154,11 @@ function spawnCompanion(type, x, z) {
   }
   if (cfg.rangedAttackSheet) {
     animMap['rangedAttack'] = cfg.rangedAttackSheet;
+  }
+  // Optional spawn anim. Plays once when the companion enters play. AI is
+  // gated by `spawning: true` until the (non-loop) anim completes.
+  if (cfg.spawnSheet) {
+    animMap['spawn'] = cfg.spawnSheet;
   }
   const anim = createAnimator(sprite, animMap, 'idle');
   const bar = makeCompanionHpBar(cfg.barColor, cfg.maxHp);
@@ -170,7 +178,12 @@ function spawnCompanion(type, x, z) {
     comboResetTimer: 0,
     throwCd: 0,
     postCooldown: null,
+    spawning: false,
   };
+  if (cfg.spawnSheet && anim.anims && anim.anims.spawn) {
+    sprite.userData.spawning = true;
+    anim.forcePlay('spawn', () => { sprite.userData.spawning = false; });
+  }
   state.companions.push(sprite);
   return sprite;
 }
@@ -188,8 +201,12 @@ function spawnCompanion(type, x, z) {
   if (ud.throwCd > 0) ud.throwCd -= dt;
 
 
-// PATCH 5B — REPLACE the `else if (d > cfg.attackRange)` branch and the
-// attack-start branch with this combo-aware version:
+// PATCH 5A.5 — Just below `if (ud.dying) return;` (in updateCompanion), ADD:
+
+  if (ud.spawning) return;
+
+
+// PATCH 5B — REPLACE the d > attackRange + cooldown <= 0 branches:
 
     } else if (d > cfg.attackRange) {
       // Spear-style ranged-alt: target past melee but inside throw range.
@@ -241,8 +258,7 @@ function spawnCompanion(type, x, z) {
     if (dx !== 0) ud.facing = dx > 0 ? 1 : -1;
 
 
-// PATCH 5C — REPLACE the attack-end branch. Adds chain-interrupt logic so the
-// dagger resets the combo when no follow-up target is in range.
+// PATCH 5C — REPLACE the attack-end branch. Adds chain-interrupt logic:
 
     if (ud.attackTimer <= 0) {
       ud.attacking = false;
@@ -261,8 +277,6 @@ function spawnCompanion(type, x, z) {
       }
       ud.cooldown = (ud.postCooldown != null) ? ud.postCooldown : cfg.attackCooldown;
       ud.postCooldown = null;
-      // Skirmish backoff: every swing for non-combo skirmishers (satyr),
-      // only after the chain finisher for combo skirmishers (dagger).
       const triggerSkirmish = cfg.skirmish && (!cfg.comboSheets || ud.comboIsFinisher);
       if (triggerSkirmish && target && !target.userData.dying) {
         ud.skirmishTimer = cfg.skirmishBackoffTime || 0.5;
@@ -292,7 +306,8 @@ function spawnCompanion(type, x, z) {
         } else if (cfg.ranged) {
           // ...your existing archer-arrow code...
         } else {
-          // Inside melee branch: use `if (d < cfg.attackRange + 1.0)` (was +0.4).
+          // Inside melee branch: change `if (d < cfg.attackRange + 0.4)` to:
+          //     if (d < cfg.attackRange + 1.0) {
           // ...rest of melee resolve unchanged...
         }
       }
@@ -307,12 +322,7 @@ function spawnCompanion(type, x, z) {
 
 
 // ----- LOC 6 — Ground-spear system (NEW) -------------------------------------
-// File: game.html, ADD this block once near the other companion helpers (e.g.
-// right after spawnFriendlyArrow or anywhere global). It defines:
-//   - state.spearStrikes: array of active strikes
-//   - spawnGroundSpear(): emits one strike at (x,z) targeting one enemy
-//   - spawnSpearAoE(): finds N nearest enemies in radius, calls spawnGroundSpear once each
-//   - updateSpearStrikes(): tick IN/OUT animations + apex damage
+// File: game.html, ADD this block once near the other companion helpers.
 
 state.spearStrikes = [];
 
@@ -324,7 +334,6 @@ function spawnGroundSpear(x, z, damage, targetEnemy) {
   const sprite = new THREE.Sprite(mat);
   const SCALE = 5;
   sprite.scale.set(SCALE, SCALE, 1);
-  // position.y = scale/2 so frame BOTTOM sits at world y=0 (spear emerges from floor).
   sprite.position.set(x, SCALE / 2, z);
   sprite.renderOrder = 4;
   scene.add(sprite);
@@ -347,7 +356,6 @@ function spawnSpearAoE(centerX, centerZ, damage, radius, maxTargets) {
     if (d < radius) candidates.push({ e, d });
   }
   if (candidates.length === 0) {
-    // No targets — still play the visual at aim point (player gets feedback).
     spawnGroundSpear(centerX, centerZ, 0, null);
     return;
   }
@@ -370,20 +378,35 @@ function updateSpearStrikes(dt) {
       const tex = s.sprite.material.map;
       tex.repeat.x = 1 / sheet.n;
       tex.offset.x = f / sheet.n;
-      // Damage at apex frame (~5 of 9). Fires once per strike.
-      if (!s.hit && f >= 5) {
+      // Re-snap visual to target's current position one frame before damage,
+      // so the rising spear stays under a moving target.
+      if (!s.hit && s.target && !s.target.userData.dying && f >= 1 && f < 2) {
+        s.sprite.position.x = s.target.position.x;
+        s.sprite.position.z = s.target.position.z;
+      }
+      // Damage on frame 2 (was frame 5) — the moment the spear tip emerges.
+      // Earlier damage frame + position re-snap = enemy can't walk off the strike.
+      if (!s.hit && f >= 2) {
         s.hit = true;
         const t = s.target;
         if (t && !t.userData.dying && s.damage > 0) {
           const eud = t.userData;
+          s.sprite.position.x = t.position.x;
+          s.sprite.position.z = t.position.z;
           eud.hp -= s.damage;
-          eud.flash = 0.28;
-          const dx = t.position.x - s.sprite.position.x;
-          const dz = t.position.z - s.sprite.position.z;
-          const len = Math.hypot(dx, dz) || 1;
-          eud.knockVel.set(dx / len * 2, 0, dz / len * 2);
-          burst(t.position.clone().setY(0.7), 'cyan', 10, 5, 0.32);
-          state.hitStop = Math.max(state.hitStop, 0.04);
+          eud.flash = 0.32;
+          // Knockback 7 (was 2). Fallback direction if target was right on the strike.
+          let dx = t.position.x - s.sprite.position.x;
+          let dz = t.position.z - s.sprite.position.z;
+          let len = Math.hypot(dx, dz);
+          if (len < 0.1) {
+            dx = eud.knockVel ? eud.knockVel.x : 0;
+            dz = eud.knockVel ? eud.knockVel.z : 1;
+            len = Math.hypot(dx, dz) || 1;
+          }
+          eud.knockVel.set(dx / len * 7, 0, dz / len * 7);
+          burst(t.position.clone().setY(0.7), 'cyan', 14, 6, 0.4);
+          state.hitStop = Math.max(state.hitStop, 0.06);
           if (typeof sfx !== 'undefined' && sfx.hit) sfx.hit(0);
           if (eud.hp <= 0 && !eud.dying) {
             eud.dying = true;
@@ -437,8 +460,7 @@ function updateSpearStrikes(dt) {
 
 
 // ----- LOC 8 — Reset cleanup -------------------------------------------------
-// File: game.html, inside reset() — ADD this block near the top of the function
-// (after the existing telegraph cleanup):
+// File: game.html, inside reset() — ADD this block near the top of the function:
 
   if (state.spearStrikes) {
     state.spearStrikes.forEach(s => scene.remove(s.sprite));
