@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hollow Vigil — Three (v2)</title>
+<link rel="stylesheet" href="../title.css">
+<style>
+  /* THREE renders into its own canvas; hide the static one. */
+  canvas#game { display: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="title">
+  <span id="variant-tag">VARIANT 2 / THREE</span>
+  <h1>HOLLOW VIGIL</h1>
+  <p id="subtitle">— Hollow Crossing —</p>
+  <button id="play">NEW GAME</button>
+</div>
+<a id="back-link" href="../index.html">← back</a>
+
+<script src="../data.js"></script>
+<script src="../engine.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module" src="game.js"></script>
+</body>
+</html>

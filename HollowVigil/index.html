@@ -6,21 +6,65 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Hollow Vigil</title>
-<link rel="stylesheet" href="styles.css?v=expansion4">
+<link rel="stylesheet" href="styles.css?v=ui_overhaul10">
 </head>
+<!--
+  =============================================================================
+  HOLLOW VIGIL — DOM LAYOUT
+  =============================================================================
+  Every UI block lives in the body below. Search for the section labels (they
+  are visible to the eye in the comments above each block). Order matches
+  z-index intent: world-overlay HUD first, then top widgets, then modals.
+
+    #hud                  top-left: gold / level / zone / health / xp
+    #bossBar              top: shown only during boss fights
+    #dmgDir{N,S,E,W}      side vignettes for direction-of-damage
+    #autosaveToast        bottom-left "SAVED" pill
+    #minimap              top-right radar (260×260)
+    #streakBadge          mid-screen multi-kill badge
+    #talentOverlay        level-up 3-card picker (modal)
+    #journalOverlay       press J / TAB to open (modal)
+    #controls             top-right hint, anchored below the minimap
+    #waveTag              transient mid-screen "Wave N"
+    #vignette + #damageFlash + #hitFlash   full-screen FX layers
+    #comboGauge           top-center hit-counter
+    #shopOverlay          between-wave rest / buy phase (modal)
+    #dashFx               full-screen dash speed-line overlay
+    #abilityBar           bottom-center Q + R ability slots
+    #overlay              main menu / game-over (modal)
+    #pauseOverlay         Esc menu (modal)
+    #settingsOverlay      audio / hints / keybinds (modal)
+    #zoneFade             screen-wipe between zones
+    #interactPrompt       floating "Press E" near NPCs
+    #objectivePanel       quest tracker bottom-right (arc-aware)
+    #storyBanner          full-screen narration card for big story beats
+    #dialogBox            NPC conversation panel (bottom)
+
+  External scripts at the very end: three.js (CDN), then game.js.
+  =============================================================================
+-->
 <body>
 <div id="hud" class="ui">
-  <span class="label">GOLD</span> <span id="goldNum">0</span>
-  <span id="levelBadge">LV 1</span>
-  <!-- zoneLabel pulls double duty: shows zone name in normal play, swaps to
-       "TIDE · WAVE n · BEST n" while Endless Tide is active. -->
+  <!-- Compact top-left HUD. Single row for gold/level/zone, then health bar,
+       then XP bar with the "next perk" hint folded inline at the right end of
+       the XP label. Removes the standalone xpHint row entirely. -->
   <span id="zoneLabel" class="zoneLabel"></span>
   <div id="healthBar"><div id="healthGhost"></div><div id="healthFill" style="width:100%"></div></div>
+  <div id="healthBarV2">
+    <div class="hbBackPlate"></div>
+    <div class="hbFillWrap">
+      <div class="hbGhost"></div>
+      <div class="hbFill"></div>
+    </div>
+    <div class="hbHeartIcon"></div>
+    <div class="hbBushL"></div>
+    <div class="hbBushR"></div>
+    <div class="hbReadout"><span id="hbCur">100</span><span class="hbSep">/</span><span id="hbMax">100</span></div>
+  </div>
   <div id="xpBar">
     <div id="xpFill" style="width:0%"></div>
-    <div id="xpLabel">XP 0 / 10</div>
+    <div id="xpLabel">XP 0 / 10 · ▲ in 10</div>
   </div>
-  <div id="xpHint"><span class="xpHintTalent">▲ NEXT PERK</span>  in 10 xp</div>
 </div>
 
 <!-- Boss HP bar at top: only shown while a boss is alive. Bar fills from
@@ -75,16 +119,7 @@
     <div id="journalClose">press J or ESC to close</div>
   </div>
 </div>
-<div id="controls" class="ui">
-  WASD / Arrows · move<br>
-  J / LMB · swing<br>
-  SPACE · dash (i-frames)<br>
-  K (hold) · block<br>
-  E · talk / travel<br>
-  Q / R · abilities<br>
-  TAB · journal<br>
-  ESC · pause
-</div>
+<!-- Legacy controls hint removed by UI Overhaul; the new HUD covers this info. -->
 <div id="waveTag" class="ui"></div>
 <div id="vignette"></div>
 <div id="damageFlash"></div>
@@ -196,32 +231,39 @@
 
 <div id="interactPrompt"><span class="key">E</span><span id="interactLabel">Talk</span></div>
 
-<!-- Objective panel: quest tracker. Shown bottom-right. updateObjectiveHUD() in JS
-     refreshes its contents whenever the quest state changes.
-     LAYOUT (top to bottom):
-       1) Header: "QUEST · STAGE n/5" + TAB hint
-       2) Title:  the verb-first action (e.g. "GO TO MAYOR ALDRIC")
-       3) Body:   one sentence of where/why
-       4) Next:   the literal next concrete step (>"talk to him")
-       5) Steps:  5 pips — done / active / locked
-       6) Progress text + bar (intra-stage refinement, like wardstone count)
-       7) Distance: live distance to current objective
+<!-- Objective panel: streamlined quest tracker.
+     Shown bottom-right. updateObjectiveHUD() refreshes its contents whenever
+     the quest state changes. Three-row layout for legibility:
+       1) Title row: stage number + verb-first action + TAB hint
+       2) Body line: one sentence of where/why (concise)
+       3) Footer:    progress bar + inline distance + reward flash
+-->
+<!-- Streamlined quest tracker. Layout (top to bottom):
+       1) Top row: stage badge + title (verb-first action) + TAB hint
+       2) Body:    one concise sentence; auto-recolors by arc (main/side/trial/endless)
+       3) Stack:   up to 2 queued sub-quests in smaller font (hidden when empty)
+       4) Footer:  progress bar, compass arrow, distance
+       5) Flash:   reward pill that pops on stage clear
+       6) Badges:  sticky chips for active modal states (endless wave, relic, etc.)
+     The panel adds a left-edge accent that changes color per arc, plus a small
+     `.flash` animation when stage advances.
 -->
 <div id="objectivePanel">
-  <div class="objHeader">QUEST<span class="objStageNum" id="objStageNum">1/5</span><span class="objJournalHint">TAB · journal</span></div>
-  <div class="objTitle" id="objTitle">—</div>
-  <div class="objBody" id="objBody"></div>
-  <div class="objNext" id="objNext"></div>
-  <div class="objSteps" id="objSteps">
-    <div class="objStep" data-step="0"></div>
-    <div class="objStep" data-step="1"></div>
-    <div class="objStep" data-step="2"></div>
-    <div class="objStep" data-step="3"></div>
-    <div class="objStep" data-step="4"></div>
+  <div class="objAccent" id="objAccent"></div>
+  <div class="objTopRow">
+    <span class="objStageNum" id="objStageNum">1/5</span>
+    <span class="objTitle" id="objTitle">—</span>
+    <span class="objJournalHint">TAB</span>
   </div>
-  <div class="objProgress" id="objProgress"></div>
-  <div class="objBar"><div class="objBarFill" id="objBarFill"></div></div>
-  <div class="objDistance" id="objDistance"></div>
+  <div class="objBody" id="objBody"></div>
+  <div class="objStack" id="objStack"></div>
+  <div class="objFooter">
+    <div class="objBar"><div class="objBarFill" id="objBarFill"></div></div>
+    <span class="objCompass" id="objCompass">▲</span>
+    <span class="objDistance" id="objDistance"></span>
+  </div>
+  <div class="objRewardFlash" id="objRewardFlash"></div>
+  <div class="objBadges" id="objBadges"></div>
 </div>
 
 <!-- Story banner: shown for big plot beats (quest start, boss appearance,
@@ -246,7 +288,43 @@
 </div>
 
 
+<div id="hotbar">
+  <div class="hbBody"></div>
+  <div id="hbSlots"></div>
+  <div id="hbChooser"></div>
+</div>
+
+<div id="bookOverlay" class="hidden">
+  <div id="bookFrame">
+    <div id="bookSprite"></div>
+    <div id="bookPages">
+      <div id="bookLeft" class="bookPage"></div>
+      <div id="bookRight" class="bookPage"></div>
+    </div>
+    <div id="bookTabs">
+      <button class="bookTab active" data-tab="quests"><span>Quests</span></button>
+      <button class="bookTab" data-tab="inventory" style="display:none;"><span>Inventory</span></button>
+      <button class="bookTab" data-tab="equipment"><span>Equipment</span></button>
+    </div>
+    <button id="bookClose" aria-label="Close">×</button>
+  </div>
+</div>
+
+<div id="compassOverlay"><img id="compassImg" alt=""></div>
+
+<!-- Fast-travel map popup. Press M to open. Click any island marker to
+     teleport. Built dynamically by openFastTravelMap() in JS. -->
+<div id="fastTravelMap" class="hidden">
+  <div id="fastTravelFrame">
+    <div id="fastTravelHeader">— TRAVEL MAP —</div>
+    <div id="fastTravelIslands"></div>
+    <div id="fastTravelHint">click an isle to travel · press M / ESC to close</div>
+  </div>
+</div>
+<div id="itemPickupToast"></div>
+<div id="tooltipPopover" class="hidden"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="game.js?v=expansion4"></script>
+<script src="game.js?v=ui_overhaul10"></script>
 </body>
 </html>

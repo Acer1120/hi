@@ -1,34 +1,158 @@
 /* =============================================================================
    HOLLOW VIGIL — STYLES
    =============================================================================
-   SECTION MAP (each banner is grep-friendly: "===== NAME ====="):
+   Grep '/\* =====' to land on any section. Line numbers below are starting
+   anchors; they shift when rules are added — treat as a guideline.
 
-     UNIFIED COLOR PALETTE         CSS variables (--gold, --red, --teal, etc.)
-     HUD                           gold / level / health / xp (top-left)
-     PA IMAGE BUTTONS              menu Play/Load/Save/Settings/Quit buttons
-     COMBO GAUGE                   top-center hit-counter, alternating tilt
-     BOSS HP BAR                   full-width strip shown only during boss
-     DAMAGE DIRECTION VIGNETTE     red side-glows when hit from a direction
-     AUTOSAVE TOAST                small lower-left "SAVED" badge
-     ABILITY COOLDOWN              radial sweep + flash on ready
-     MINIMAP                       top-right radar + objective markers
-     XP / LEVEL BAR                slim strip under the health bar
-     KILL STREAK FLOATING TEXT     mid-screen multi-kill badge
-     TALENT PICK MODAL             level-up reward picker (3 cards)
-     QUEST JOURNAL OVERLAY         press J / TAB to open
-     OBJECTIVE PANEL               quest tracker bottom-right
-     STORY BANNER                  full-screen narration card for big beats
-     INTERACT PROMPT               floating "Press E to talk" near NPCs
-     DIALOG BOX                    NPC conversation panel (bottom)
-     ABILITY BAR                   bottom-center Q + R slot icons
-     SHOP OVERLAY                  between-wave rest / buy phase
-     PAUSE OVERLAY                 Esc menu
-     MAIN MENU buttons             title-screen button styling
-     SETTINGS OVERLAY              audio / hints / keybinds panel
-     KEYBIND SECTION               in-Settings rebind list
-     ZONE FADE                     screen-wipe between zones
+     UNIFIED COLOR PALETTE         line   33   — CSS variables (--gold, etc.)
+     HUD                           line   54   — gold / level / health / xp
+     PA IMAGE BUTTONS              line  229   — menu sprite-buttons
+     COMBO GAUGE                   line  304   — top-center hit-counter
+     BOSS HP BAR                   line  398   — full-width strip during boss
+     DAMAGE DIRECTION VIGNETTE     line  441   — red side-glows on damage
+     AUTOSAVE TOAST                line  459   — lower-left "SAVED" badge
+     ABILITY COOLDOWN              line  477   — radial sweep + flash
+     MINIMAP                       line  493   — top-right radar
+     XP / LEVEL BAR                line  545   — under the health bar
+     KILL STREAK FLOATING TEXT     line  589   — mid-screen multi-kill badge
+     TALENT PICK MODAL             line  604   — level-up 3-card picker
+     QUEST JOURNAL OVERLAY         line  660   — press J / TAB to open
+     OBJECTIVE PANEL               line  693   — quest tracker bottom-right
+                                                  (arc-coloring, badges, flash)
+     STORY BANNER                  line  893   — full-screen narration card
+     INTERACT PROMPT               line  939   — floating "Press E to talk"
+     DIALOG BOX                    line  966   — NPC conversation panel
+     ABILITY BAR                   line 1192   — bottom-center Q + R slots
+     SHOP OVERLAY                  line 1247   — between-wave rest/buy phase
+     PAUSE OVERLAY                 line 1342   — Esc menu
+     MAIN MENU buttons             line 1385   — title-screen styling
+     SETTINGS OVERLAY              line 1396   — audio / hints / keybinds
+     KEYBIND SECTION               line 1438   — in-Settings rebind list
+     ZONE FADE                     line 1503   — screen-wipe between zones
+   =============================================================================
+
+   CONVENTIONS
+     - Variables in :root drive the palette. Don't hardcode #ffcc33 — use
+       var(--gold). Same for --red, --teal, --grass, --gold-light, etc.
+     - Modal overlays use a consistent shape: full-screen ::before scrim,
+       centered .frame with 4px gold border, drop-shadow, padding 28px.
+     - Bottom-right widgets (objective panel, autosave toast, ability bar)
+       all anchor with `bottom: ...; right/left: ...` so they don't collide.
+     - Minimap is 260×260 at top-right. The HUD sits at top-left; the
+       controls hint sits BELOW the minimap (top: 296px right: 16px) so
+       the two never overlap.
+     - Mobile / compact layout: every panel either shrinks (minimap, panel)
+       or hides (controls hint) at the @media (max-width: 720px) breakpoint.
    =============================================================================
 */
+
+  /* Every UI element backed by a MagicalUI paper sprite gets pixelated
+     scaling so the hand-painted pixel art doesn't blur as the panel resizes. */
+  #minimap, #objectivePanel, #zoneFade, #waveTag, #streakBadge,
+  #autosaveToast, #itemPickupToast, #storyBanner, #interactPrompt,
+  #shopFrame, #pauseFrame, #settingsFrame, #menuPanel, #talentFrame,
+  #bossBarTrack, .abilitySlot, #hud .zoneLabel, .talentCard, #tooltipPopover,
+  #fastTravelMap {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+  }
+
+  /* ===== FAST-TRAVEL MAP POPUP ============================================
+     Press M anywhere to open. Backdrop is the MagicalUI map texture; the
+     panel itself is the Paper.png sprite from MagicalUI/Body. Each island
+     marker is the LittleMountain sprite with a Waypoint pin and a label.
+     Clicking an island calls window.enterZone(id) and closes the popup. */
+  #fastTravelMap {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(14, 9, 4, 0.7);
+    display: flex; align-items: center; justify-content: center;
+    image-rendering: pixelated;
+    opacity: 1;
+    transition: opacity 0.32s ease-out;
+  }
+  #fastTravelMap.hidden { opacity: 0; pointer-events: none; }
+  #fastTravelMap.hidden #fastTravelFrame { transform: scale(0.96); }
+  /* Frame uses the same Paper.png sprite as every other panel — one
+     consistent paper across the whole UI. No tiled "Texture" background, no
+     decorative header sprite — just a clean inked title. */
+  #fastTravelFrame {
+    position: relative;
+    width: min(580px, 90vw); height: min(420px, 76vh);
+    background: url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.55);
+    padding: 44px 28px 28px;
+    image-rendering: pixelated;
+    transform: scale(1);
+    transition: transform 0.32s ease-out;
+  }
+  #fastTravelHeader {
+    position: absolute; top: 12px; left: 0; right: 0;
+    color: #5a2a08; font-family: 'Georgia', serif;
+    font-size: 14px; letter-spacing: 5px; font-weight: bold;
+    font-variant: small-caps;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(58, 36, 16, 0.35);
+    margin: 0 28px;
+  }
+  #fastTravelIslands {
+    position: relative; width: 100%; height: 100%;
+  }
+  /* Each island is a small ink dot + label. No mountain sprite chrome —
+     just a clean clickable marker on the page like a hand-drawn map mark. */
+  .ftIsland {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer; pointer-events: auto;
+    text-align: center; user-select: none;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+    transition: transform 0.12s ease;
+  }
+  .ftIsland:hover { transform: translate(-50%, -50%) scale(1.1); }
+  .ftIsland .ftMtn {
+    width: 16px; height: 16px;
+    background: #3a2410;
+    border: 2px solid #6e3a1a;
+    border-radius: 50%;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+    flex-shrink: 0;
+  }
+  .ftIsland.current .ftMtn {
+    width: 18px; height: 18px;
+    background: #c8a04c;
+    border-color: #6e1818;
+    box-shadow: 0 0 0 2px rgba(200, 160, 76, 0.4), 0 1px 0 rgba(0,0,0,0.4);
+  }
+  .ftIsland .ftWaypoint { display: none; }
+  /* Bigger label with a soft cream paper backing so it stays readable on
+     any part of the map sprite. */
+  .ftIsland .ftLabel {
+    font-family: 'Georgia', serif;
+    font-size: 14px; font-weight: bold;
+    color: #2a1408;
+    background: rgba(244, 220, 168, 0.85);
+    border: 1px solid rgba(58, 36, 16, 0.55);
+    padding: 3px 9px;
+    white-space: nowrap;
+    letter-spacing: 0.6px;
+    font-variant: small-caps;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  }
+  .ftIsland.current .ftLabel {
+    color: #6e1818;
+    background: rgba(255, 232, 180, 0.95);
+    border-color: #6e1818;
+  }
+  #fastTravelHint {
+    position: absolute; bottom: 10px; left: 0; right: 0;
+    color: #6e3a1a; font-family: 'Georgia', serif;
+    font-size: 10px; letter-spacing: 2px;
+    font-variant: small-caps;
+    text-align: center;
+    opacity: 0.8;
+  }
 
   /* ===== UNIFIED COLOR PALETTE ===== */
   :root {
@@ -52,14 +176,31 @@
   }
 
   /* ===== HUD: Gold, Wave, Health ===== */
-  #hud { top: 16px; left: 16px; font-size: 18px; line-height: 1.4; letter-spacing: 1px; }
-  #hud .label { font-size: 12px; opacity: 0.75; letter-spacing: 3px; color: var(--gold-light); }
-  #hud .zoneLabel {
-    display: block; margin-top: 4px;
-    font-size: 13px; letter-spacing: 3px;
-    color: #ffe066; opacity: 0.7;
-    text-shadow: 1px 1px 0 #1a0a02;
+  #hud { top: 16px; left: 16px; font-size: 18px; line-height: 1.35; letter-spacing: 1px; }
+  #hud .hudTopRow {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 6px; flex-wrap: wrap;
   }
+  #hud .label { font-size: 12px; opacity: 0.75; letter-spacing: 3px; color: var(--gold-light); }
+  /* Parchment-tag for the current-zone label so it matches the minimap and
+     objective panel instead of looking like flat HUD text on the world. */
+  #hud .zoneLabel {
+    display: inline-block;
+    font-family: 'Georgia', serif;
+    font-size: 12px; letter-spacing: 2px;
+    font-variant: small-caps;
+    color: #2a1408;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    border-radius: 4px;
+    padding: 3px 12px;
+    box-shadow:
+      0 0 0 1px #2a1408,
+      0 4px 8px rgba(0,0,0,0.4),
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32);
+  }
+  #hud .zoneLabel:empty { display: none; }
   #goldNum, #waveNum {
     display: inline-block; font-size: 28px;
     color: var(--gold); transform-origin: center;
@@ -153,74 +294,75 @@
     #controls { display: none; }
   }
 
+  /* Wave tag — proclamation banner stamped across the screen mid-fight. Reads
+     as an inked parchment scroll, not a glowing arcade title. */
   #waveTag {
     position: absolute; top: 38%; left: 50%;
-    transform: translate(-50%, -50%) scale(0) rotate(-12deg);
-    font-size: 88px; color: var(--gold);
-    text-shadow: 5px 5px 0 var(--red-dark), 8px 8px 0 #1a0a04, 0 0 24px rgba(255, 200, 80, 0.5);
-    z-index: 9; pointer-events: none; font-weight: bold; letter-spacing: 6px;
+    transform: translate(-50%, -50%) scale(0) rotate(-3deg);
+    font-family: 'Georgia', serif; font-size: 56px;
+    color: #2a1408; font-weight: bold; letter-spacing: 8px;
+    font-variant: small-caps;
+    padding: 18px 56px;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 4px double #3a2410;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px #2a1408,
+      0 12px 24px rgba(0,0,0,0.55),
+      inset 0 0 0 3px rgba(210, 180, 130, 0.35);
+    z-index: 9; pointer-events: none;
     transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.45s;
     opacity: 0;
   }
   #waveTag.show { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
 
+  /* ===== MAIN-MENU / TITLE SCREEN — clean and simple ========================
+     Solid dark backdrop, simple framed panel, plain readable typography.
+     No gradients, no animations, no scanlines, no scratches. */
   #overlay {
     position: absolute; inset: 0;
-    /* Layered backdrop: dark vignette over a procedural "wasteland sky"
-       gradient; subtle scanline pattern over the top for retro CRT feel. */
-    background:
-      radial-gradient(ellipse at 50% 35%, rgba(255,200,120,0.07), transparent 60%),
-      radial-gradient(ellipse at center, rgba(8,4,2,0.55), rgba(0,0,0,0.92)),
-      linear-gradient(180deg, #4a4634 0%, #2a2418 55%, #14100a 100%);
+    background: #1a1814;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; z-index: 20; transition: opacity 0.4s;
-    image-rendering: pixelated;
+    color: #e6dccd; z-index: 20; transition: opacity 0.4s;
     overflow: hidden;
-  }
-  #overlay::before {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(0deg,
-      transparent 0, transparent 2px,
-      rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px);
-    opacity: 0.7;
-    z-index: 1;
   }
   #menuPanel {
     position: relative; z-index: 2;
-    width: min(560px, 92vw);
-    padding: 36px 28px 24px;
-    background: rgba(20, 14, 8, 0.92);
-    border: 4px solid #ffcc33;
-    box-shadow:
-      0 0 0 2px #1a0a02,
-      0 0 0 6px #5a3a20,
-      0 0 50px rgba(255,170,60,0.35),
-      inset 0 0 22px rgba(0,0,0,0.85);
+    width: min(480px, 88vw);
+    padding: 32px 28px 22px;
+    background: #221f1a;
+    border: 1px solid #4a3f30;
     text-align: center;
-    font-family: "Courier New", monospace;
+    font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+    color: #e6dccd;
   }
   #overTitle {
-    font-size: 64px; margin-bottom: 4px;
-    color: var(--gold);
-    text-shadow: 4px 4px 0 var(--red-dark), 7px 7px 0 #1a0a04, 0 0 28px rgba(255,170,60,0.4);
-    letter-spacing: 8px;
+    font-size: 48px; margin: 0 0 6px 0;
+    color: #e6dccd;
+    font-weight: bold;
+    letter-spacing: 4px;
     line-height: 1;
   }
   #overSubtitle {
-    font-size: 14px; letter-spacing: 6px;
-    color: #ffe066; opacity: 0.85;
-    margin-bottom: 18px;
+    font-size: 13px; letter-spacing: 2px;
+    color: #b8a880;
+    margin: 0 0 18px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #4a3f30;
   }
   #overText {
-    font-size: 14px; letter-spacing: 1.5px;
-    color: #ddd6c4;
-    margin: 0 0 28px;
-    line-height: 1.5;
+    font-size: 14px; letter-spacing: 0.5px;
+    color: #c8bca8;
+    margin: 0 0 22px 0;
+    line-height: 1.55;
   }
   #overFooter {
-    margin-top: 22px;
-    font-size: 11px; letter-spacing: 3px;
-    color: #998870; opacity: 0.65;
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid #4a3f30;
+    font-size: 11px; letter-spacing: 2px;
+    color: #7a6e58;
   }
   /* === PA image buttons (Play/Load/Save/Settings/Quit) ===
      Each button shows a "Not-Pressed" sprite; on hover/active it swaps to the
@@ -230,26 +372,29 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px 18px;
-    padding: 4px 0;
+    padding: 8px 4px;
   }
-  /* Main-menu image buttons. Each button renders an <img> child whose src is
-     set by paintMenuButtons() from the PA_UI inlined data URIs. Using an <img>
-     (instead of CSS background-image) means the button is visible the moment
-     the DOM parses — no dependency on JS running in any particular order. */
+  /* Main-menu buttons — JUST the PA_UI sprite. No chrome around it: the
+     sprite IS the button. The text style only ever appears as a fallback if
+     the <img> fails to paint, and even then it sits on transparent. */
   .paBtn {
+    position: relative;
     width: 100%;
     height: 64px;
-    background: transparent;
-    border: none; padding: 0; margin: 0;
+    padding: 0; margin: 0;
     cursor: pointer;
-    image-rendering: pixelated;
-    transition: transform 0.06s ease-out, filter 0.12s;
-    filter: drop-shadow(0 4px 0 rgba(0,0,0,0.6));
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    transition: transform 0.08s ease-out, filter 0.12s;
+    filter: drop-shadow(0 4px 0 rgba(0,0,0,0.55));
     display: flex; align-items: center; justify-content: center;
-    /* Text fallback shown if the <img> failed to paint for any reason */
-    color: #ffe066; font-family: 'Courier New', monospace; font-weight: bold;
+    /* Text fallback shown only if the PA_UI <img> fails to load. */
+    color: #5a2a08;
+    font-family: 'Georgia', serif; font-weight: bold;
     font-size: 18px; letter-spacing: 6px;
-    text-shadow: 2px 2px 0 #1a0a02;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
   }
   .paBtn img {
     max-width: 100%; max-height: 100%;
@@ -258,9 +403,12 @@
     pointer-events: none;
     object-fit: contain;
   }
-  .paBtn:hover { transform: translateY(-2px); filter: drop-shadow(0 6px 0 rgba(0,0,0,0.6)) brightness(1.08); }
+  .paBtn:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 6px 0 rgba(0,0,0,0.6)) brightness(1.06);
+  }
   .paBtn:active { transform: translateY(2px); filter: drop-shadow(0 2px 0 rgba(0,0,0,0.6)); }
-  .paBtn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .paBtn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: saturate(0.4); }
   /* Game-over respawn / mainmenu buttons reuse paBtn styling. */
   .paBtn.wide { grid-column: span 2; }
   /* Compact menu for narrow screens */
@@ -328,63 +476,49 @@
     75%  { transform: translate3d(3px,0,0); }
     100% { transform: translate3d(0,0,0); }
   }
-  /* Retro pixelated label "COMBO x05" with stair-step shadow */
+  /* Combo label drawn in inked serif so it matches the parchment HUD theme. */
   #comboCount {
-    font-family: "Courier New", monospace; font-weight: bold;
-    font-size: 30px; letter-spacing: 5px;
-    color: #ffe066;
+    font-family: 'Georgia', serif; font-weight: bold;
+    font-size: 26px; letter-spacing: 4px;
+    color: #5a2a08;
+    font-variant: small-caps;
     line-height: 1; margin-bottom: 6px;
-    /* Pixel-stair drop shadow (multi-offset, no blur) for 8-bit look */
-    text-shadow:
-      2px 0 0 #cc3300, 0 2px 0 #cc3300, -2px 0 0 #cc3300, 0 -2px 0 #cc3300,
-      4px 4px 0 #1a0a02;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
   }
   #comboGauge.max #comboCount {
-    color: #ffffff;
+    color: #6e1818;
     animation: comboCountFlare 0.4s steps(2) infinite;
   }
   @keyframes comboCountFlare {
-    0%   { color: #ffffff; text-shadow: 2px 0 0 #ff3300, 0 2px 0 #ff3300, -2px 0 0 #ff3300, 0 -2px 0 #ff3300, 4px 4px 0 #1a0a02; }
-    50%  { color: #ffee44; text-shadow: 2px 0 0 #ff7700, 0 2px 0 #ff7700, -2px 0 0 #ff7700, 0 -2px 0 #ff7700, 4px 4px 0 #1a0a02; }
+    0%   { color: #6e1818; }
+    50%  { color: #b8302a; }
   }
-  /* Chunky retro track. Sharp corners. Thick black/gold bevel border. */
+  /* Combo track — parchment socket with a deep ink fill. */
   #comboTrack {
-    width: 100%; height: 36px;
-    background: #100804;
-    border: 4px solid #ffcc33;
+    width: 100%; height: 22px;
+    background: rgba(70, 38, 16, 0.20);
+    border: 2px solid #3a2410;
+    border-radius: 4px;
     box-shadow:
-      0 0 0 2px #5a3a20,
-      0 0 0 4px #1a0a02,
-      0 0 18px rgba(255,160,40,0.45),
-      inset 0 0 8px rgba(0,0,0,0.9);
+      0 0 0 1px #2a1408,
+      0 4px 10px rgba(0,0,0,0.45),
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32);
     position: relative;
     overflow: hidden;
-    border-radius: 0;
   }
-  /* CRT-style scanline overlay for retro CRT vibe */
-  #comboTrack::after {
-    content: ""; position: absolute; inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent 0, transparent 2px,
-      rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 3px);
-    z-index: 2;
-  }
-  /* Single smooth fill that grows with combo. Width animated via CSS transition. */
+  /* CRT scanline overlay removed — clean parchment combo bar now. */
+  #comboTrack::after { display: none; }
+  /* Combo fill — sepia-amber ink that grows with the combo count. */
   #comboFill {
     height: 100%; width: 0%;
-    background: linear-gradient(180deg, #ffee88 0%, #ff9933 50%, #cc3300 100%);
-    box-shadow:
-      inset 0 2px 0 rgba(255,255,200,0.6),
-      inset 0 -2px 0 rgba(80,0,0,0.55),
-      0 0 12px rgba(255,170,60,0.7);
+    background: linear-gradient(180deg, #d8b86a 0%, #b88a30 50%, #6e3a1a 100%);
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.4);
     transition: width 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative; z-index: 1;
   }
-  #comboGauge.max #comboTrack { border-color: #ff5522; box-shadow: 0 0 0 2px #cc1100, 0 0 0 4px #1a0a02, 0 0 28px rgba(255,80,40,0.7), inset 0 0 8px rgba(0,0,0,0.9); }
+  #comboGauge.max #comboTrack { border-color: #6e1818; box-shadow: 0 0 0 1px #3a0a0a, 0 4px 10px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(210, 180, 130, 0.32); }
   #comboGauge.max #comboFill {
-    background: linear-gradient(180deg, #ffffff 0%, #ffee44 35%, #ff3300 70%, #aa0000 100%);
+    background: linear-gradient(180deg, #d8a064 0%, #b8302a 50%, #6e1818 100%);
     animation: comboFillFlare 0.32s steps(2) infinite;
   }
   @keyframes comboFillFlare {
@@ -402,35 +536,43 @@
     font-family: 'Courier New', monospace;
     text-align: center;
   }
+  #bossBar { font-family: 'Georgia', serif; }
   #bossBar.show { opacity: 1; transform: translate(-50%, 0); }
   #bossBar .bossName {
-    color: #ff5566; font-weight: bold; font-size: 16px;
+    color: #6e1818; font-weight: bold; font-size: 18px;
     letter-spacing: 5px; margin-bottom: 4px;
-    text-shadow: 2px 2px 0 #1a0a02, 0 0 16px rgba(255,80,80,0.6);
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55), 2px 2px 0 rgba(0,0,0,0.45);
   }
   #bossBar .bossSub {
-    display: inline-block; color: #ddd6c4;
+    display: inline-block; color: #5a3a18;
     font-size: 10px; letter-spacing: 3px;
-    margin-bottom: 6px; opacity: 0.75;
-    text-shadow: 1px 1px 0 #000;
+    margin-bottom: 8px;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.4);
   }
   #bossBarTrack {
-    width: 100%; height: 18px;
-    background: rgba(20, 8, 4, 0.92);
-    border: 3px solid #b8221a;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 22px rgba(255,40,40,0.45), inset 0 0 8px rgba(0,0,0,0.85);
+    width: 100%; height: 20px;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 3px solid #3a2410;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px #2a1408,
+      0 6px 14px rgba(0,0,0,0.55),
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32);
     overflow: hidden; position: relative;
   }
   #bossBarFill {
     height: 100%; width: 100%;
-    background: linear-gradient(180deg, #ff7766 0%, #e02818 50%, #6a0606 100%);
-    box-shadow: inset 0 2px 0 rgba(255,210,180,0.45);
+    background: linear-gradient(180deg, #c84a30 0%, #8a2010 50%, #4a0a08 100%);
+    box-shadow: inset 0 1px 0 rgba(255,180,140,0.35);
     transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
   #bossBarFill::after {
     content: "";
     position: absolute; inset: 0;
-    background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,255,255,0.05) 8px 9px);
+    background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,232,180,0.08) 8px 9px);
     pointer-events: none;
   }
 
@@ -452,22 +594,26 @@
     opacity: 1; transition: opacity 0.05s ease-in;
   }
 
-  /* ===== AUTOSAVE TOAST — small lower-left badge ===== */
+  /* Autosave toast — small parchment ribbon at the lower-left. */
   #autosaveToast {
     position: absolute; bottom: 16px; left: 16px;
-    background: rgba(18, 10, 4, 0.92);
-    border: 2px solid #66e2c8;
-    color: #66e2c8; font-family: 'Courier New', monospace;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    border-radius: 4px;
+    color: #2a1408; font-family: 'Georgia', serif;
     font-weight: bold; font-size: 11px; letter-spacing: 3px;
-    padding: 6px 12px;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 14px rgba(102,226,200,0.35);
+    font-variant: small-caps;
+    padding: 6px 14px;
+    box-shadow: 0 0 0 1px #2a1408, 0 6px 12px rgba(0,0,0,0.45),
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32);
     z-index: 11; pointer-events: none;
     opacity: 0; transform: translateY(8px);
     transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
   }
   #autosaveToast.show { opacity: 1; transform: translateY(0); }
   #autosaveToast::before {
-    content: "✓"; margin-right: 6px; color: #88ffd0;
+    content: "✓"; margin-right: 6px; color: #2a5a1a;
   }
 
   /* ===== ABILITY COOLDOWN — radial sweep + flash on ready ===== */
@@ -487,48 +633,71 @@
   @property --cd-pct { syntax: '<percentage>'; initial-value: 0%; inherits: false; }
 
   /* ===== MINIMAP (top-right corner radar with objective markers) ===== */
+  /* ===== MINIMAP — parchment map ============================================
+     Drawn to look like a tacked-up cartographer's chart: aged-paper background
+     with subtle stains, wax-stamp corner pins, brown ink compass markings,
+     and a faint frame border. The internal canvas is multiply-blended on top
+     so map blips read as ink strokes on the parchment instead of LEDs in a
+     dark bezel. */
   #minimap {
     position: absolute; top: 16px; right: 16px;
-    width: 260px; height: 260px;
-    background: radial-gradient(circle at 50% 50%, rgba(34,26,18,0.94) 0%, rgba(12,8,5,0.97) 100%);
-    border: 2px solid #c9a35c;
-    box-shadow: 0 0 0 2px #1a0a02, 0 4px 14px rgba(0,0,0,0.55), inset 0 0 18px rgba(0,0,0,0.65);
+    width: 220px; height: 220px;
+    /* Pure paper sprite. */
+    background: url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.45);
     z-index: 11; pointer-events: none;
     overflow: hidden;
+  }
+  /* Wax-seal corner studs removed — Paper.png speaks for itself. */
+  /* Map canvas blends INTO the parchment (multiply) so ink strokes read as
+     drawn, not as glowing pixels on a dark screen. */
+  /* Force the minimap canvas to fill the (smaller) parent square exactly so
+     the player triangle drawn at (W/2, H/2) lands at the visible centre of
+     the corner minimap. Without this, the native 260-px canvas overflowed
+     the 220-px parent and the centre drifted down-right. */
+  #minimap canvas {
+    display: block;
+    width: 100%; height: 100%;
     image-rendering: pixelated;
+    mix-blend-mode: multiply;
+    opacity: 0.95;
   }
-  #minimap canvas { display: block; image-rendering: pixelated; }
   #minimap .mmLabel {
-    position: absolute; top: 4px; left: 0; right: 0; text-align: center;
-    color: #ffcc33; font-size: 9px; letter-spacing: 3px; font-weight: bold;
-    text-shadow: 1px 1px 0 #000;
-    z-index: 2; pointer-events: none;
+    position: absolute; top: 6px; left: 0; right: 0; text-align: center;
+    color: #5a2a08; font-size: 10px; letter-spacing: 4px; font-weight: bold;
+    font-family: 'Georgia', serif;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.6);
+    z-index: 3; pointer-events: none;
   }
-  /* Compass cardinals overlaid on the rim — N at top, S bottom, etc. */
+  /* Compass cardinals — hand-inked serif letters in deep brown, no glow. */
   #minimap .mmCompass {
     position: absolute; inset: 0;
-    pointer-events: none; z-index: 2;
-    color: #ffe066; font-family: 'Courier New', monospace;
-    font-weight: bold; font-size: 11px;
-    text-shadow: 1px 1px 0 #000;
+    pointer-events: none; z-index: 3;
+    color: #5a2a08; font-family: 'Georgia', serif;
+    font-weight: bold; font-size: 13px;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.5);
   }
   #minimap .mmCompass span { position: absolute; }
-  #minimap .mmN { top: 14px; left: 50%; transform: translateX(-50%); }
-  #minimap .mmS { bottom: 14px; left: 50%; transform: translateX(-50%); color: #ddd6c4; }
-  #minimap .mmE { top: 50%; right: 8px;  transform: translateY(-50%); color: #ddd6c4; }
-  #minimap .mmW { top: 50%; left: 8px;   transform: translateY(-50%); color: #ddd6c4; }
-  /* Bottom-center "objective ↑ 32m" readout drawn as DOM (not canvas) so the
-     text is sharp regardless of the canvas pixelation. */
+  #minimap .mmN { top: 18px; left: 50%; transform: translateX(-50%); }
+  #minimap .mmS { bottom: 18px; left: 50%; transform: translateX(-50%); }
+  #minimap .mmE { top: 50%; right: 12px;  transform: translateY(-50%); }
+  #minimap .mmW { top: 50%; left: 12px;   transform: translateY(-50%); }
+  /* Bottom-center "objective" readout — paper banner that hangs at the foot
+     of the map. Brown ink on cream. */
   #minimap .mmObjective {
-    position: absolute; bottom: 6px; left: 50%;
+    position: absolute; bottom: 8px; left: 50%;
     transform: translateX(-50%);
-    pointer-events: none; z-index: 3;
-    background: rgba(20,10,4,0.85);
-    border: 1px solid #ffcc33;
-    color: #ffe066; font-family: 'Courier New', monospace;
-    font-size: 10px; letter-spacing: 1.5px; font-weight: bold;
-    padding: 2px 6px;
-    text-shadow: 1px 1px 0 #000;
+    pointer-events: none; z-index: 4;
+    background:
+      linear-gradient(180deg, rgba(255,238,196,0.95) 0%, rgba(232,200,140,0.95) 100%);
+    border: 1px solid #5a3a18;
+    color: #2a1408;
+    font-family: 'Georgia', serif;
+    font-size: 11px; letter-spacing: 1px; font-weight: bold;
+    padding: 3px 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35);
     white-space: nowrap;
     max-width: 88%;
     overflow: hidden; text-overflow: ellipsis;
@@ -538,117 +707,135 @@
     #minimap { width: 180px; height: 180px; top: 12px; right: 12px; }
   }
 
-  /* ===== XP / LEVEL BAR (slim strip under the health bar) ===== */
+  /* XP bar — parchment socket with sepia ink fill, matching the rest of the
+     parchment HUD palette (no glowing gold neon any more). */
   #xpBar {
-    width: 320px; height: 16px;
-    background: rgba(20, 12, 6, 0.85);
-    border: 2px solid #5a3a20;
+    width: 320px; height: 18px;
+    background: rgba(70, 38, 16, 0.20);
+    border: 2px solid #3a2410;
     border-radius: 4px;
-    margin-top: 6px; overflow: hidden;
+    margin-top: 8px; overflow: hidden;
     position: relative;
-    box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(0,0,0,0.85);
+    box-shadow: 0 0 0 1px #2a1408, inset 0 0 0 1px rgba(210, 180, 130, 0.28);
   }
   #xpFill {
     height: 100%;
-    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 50%, #aa5500 100%);
-    box-shadow: inset 0 1px 0 rgba(255,220,160,0.55), 0 0 8px rgba(255,200,80,0.45);
+    background: linear-gradient(180deg, #d8b86a 0%, #b88a30 50%, #6e3a1a 100%);
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.45);
     transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   }
   #xpLabel {
     position: absolute; top: 0; left: 0; right: 0; height: 100%;
-    text-align: center; line-height: 16px; font-size: 10px;
-    color: #fff; font-weight: bold; letter-spacing: 1px;
-    text-shadow: 1px 1px 0 #000;
+    text-align: center; line-height: 18px; font-size: 11px;
+    color: #f3dca8; font-weight: bold; letter-spacing: 1px;
+    font-family: 'Georgia', serif;
+    text-shadow: 1px 1px 0 #2a1408;
     pointer-events: none;
   }
-  /* "Next perk in N XP" hint that appears under the XP bar so the player
-     always knows how close the next talent pick is. */
   #xpHint {
     width: 320px; margin-top: 4px;
     font-size: 10px; letter-spacing: 2px;
-    color: #ffe066; font-family: 'Courier New', monospace;
-    text-shadow: 1px 1px 0 #000;
-    opacity: 0.85;
+    color: #5a3a18; font-family: 'Georgia', serif;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.4);
+    opacity: 0.95;
   }
-  #xpHint .xpHintTalent { color: #88ffd0; }
+  #xpHint .xpHintTalent { color: #2a5a1a; }
   #levelBadge {
     display: inline-block;
-    background: linear-gradient(180deg, #ffcc33 0%, #ff8844 100%);
-    color: #1a0a02; font-weight: bold;
-    padding: 2px 9px; margin-left: 8px;
-    border: 2px solid #1a0a02; border-radius: 3px;
+    background: #6e3a1a;
+    color: #f3dca8; font-weight: bold;
+    font-family: 'Georgia', serif;
+    padding: 2px 10px; margin-left: 8px;
+    border: 2px solid #2a1408; border-radius: 3px;
     font-size: 13px; letter-spacing: 1px;
-    text-shadow: none;
-    box-shadow: 0 0 10px rgba(255,200,80,0.45);
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.18);
   }
 
-  /* ===== KILL STREAK FLOATING TEXT ===== */
+  /* Kill-streak badge — wax-stamp on parchment that pops mid-screen on chains. */
   #streakBadge {
     position: absolute; top: 17%; left: 50%;
     transform: translate(-50%, -50%) scale(0);
-    font-family: 'Courier New', monospace; font-weight: bold;
+    font-family: 'Georgia', serif; font-weight: bold;
     pointer-events: none; z-index: 10;
-    color: #ff8844; font-size: 28px; letter-spacing: 4px;
-    text-shadow: 3px 3px 0 #1a0a02, 0 0 18px rgba(255,140,60,0.7);
+    color: #6e3a1a; font-size: 26px; letter-spacing: 3px;
+    font-variant: small-caps;
+    padding: 6px 22px;
+    background: url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 3px double #3a2410;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px #2a1408, 0 8px 16px rgba(0,0,0,0.55), inset 0 0 0 2px rgba(210, 180, 130, 0.32);
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
     transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease;
     opacity: 0;
   }
   #streakBadge.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  #streakBadge.high { color: #ff3344; font-size: 36px; text-shadow: 4px 4px 0 #1a0a02, 0 0 24px rgba(255,80,80,0.85); }
-  #streakBadge.legendary { color: #ffe066; font-size: 44px; text-shadow: 5px 5px 0 #1a0a02, 0 0 32px rgba(255,220,80,0.95); }
+  #streakBadge.high { color: #6e1818; font-size: 30px; }
+  #streakBadge.legendary { color: #6e1818; font-size: 36px; border-color: #6e1818; }
 
   /* ===== TALENT PICK MODAL (level-up rewards) ===== */
   #talentOverlay {
     position: absolute; inset: 0;
-    background: radial-gradient(ellipse at center, rgba(40,28,16,0.55), rgba(0,0,0,0.88));
+    background: rgba(20, 14, 8, 0.78);
     display: flex; align-items: center; justify-content: center;
-    z-index: 25; opacity: 0; pointer-events: none;
+    z-index: 9990; opacity: 0; pointer-events: none;
     transition: opacity 0.3s ease;
   }
   #talentOverlay.show { opacity: 1; pointer-events: auto; }
   #talentFrame {
     width: min(820px, 94vw);
-    background: rgba(20, 14, 8, 0.96);
-    border: 4px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 60px rgba(255,170,60,0.45);
-    padding: 28px 24px;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 4px double #3a2410;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px #2a1408, 0 12px 30px rgba(0,0,0,0.6),
+      inset 0 0 0 3px rgba(210, 180, 130, 0.32);
+    padding: 28px 28px;
     text-align: center;
-    font-family: 'Courier New', monospace;
+    font-family: 'Georgia', serif;
   }
   #talentTitle {
-    color: #ffcc33; font-size: 26px; letter-spacing: 6px; font-weight: bold;
+    color: #5a2a08; font-size: 26px; letter-spacing: 6px; font-weight: bold;
     margin-bottom: 4px;
-    text-shadow: 2px 2px 0 #000, 0 0 22px rgba(255,200,80,0.55);
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.6);
   }
   #talentSub {
-    color: #ddd6c4; font-size: 13px; letter-spacing: 2px;
-    margin-bottom: 22px;
+    color: #5a3a18; font-size: 13px; letter-spacing: 2px;
+    margin-bottom: 22px; font-style: italic;
   }
   #talentChoices {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
   }
   .talentCard {
-    background: linear-gradient(180deg, rgba(40,30,18,0.95), rgba(15,8,4,0.95));
-    border: 3px solid #5a3a20;
-    padding: 18px 14px;
+    background: rgba(255, 244, 212, 0.55);
+    border: 2px solid #3a2410;
+    border-left-width: 4px;
+    border-radius: 4px;
+    padding: 18px 16px;
     cursor: pointer;
     text-align: left;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-    box-shadow: 0 0 12px rgba(0,0,0,0.6);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
   }
   .talentCard:hover {
     transform: translateY(-4px);
-    border-color: #ffcc33;
-    box-shadow: 0 0 22px rgba(255,200,80,0.5);
+    background: rgba(255, 244, 212, 0.85);
+    box-shadow: 0 0 0 1px #c8a04c, 0 8px 18px rgba(0,0,0,0.35);
   }
   .talentCard.sel {
     transform: translateY(-4px);
-    border-color: #ffcc33;
-    box-shadow: 0 0 28px rgba(255,200,80,0.7);
+    background: rgba(255, 244, 212, 0.95);
+    border-left-color: #c8a04c;
+    box-shadow: 0 0 0 2px #c8a04c, 0 8px 18px rgba(0,0,0,0.35);
   }
-  .talentCard .tName { color: #ffe066; font-size: 18px; letter-spacing: 2px; font-weight: bold; margin-bottom: 6px; text-shadow: 2px 2px 0 #000; }
-  .talentCard .tDesc { color: #ddd6c4; font-size: 12px; line-height: 1.5; }
-  .talentCard .tIcon { font-size: 26px; margin-bottom: 8px; color: #ffaa44; }
+  .talentCard .tName {
+    color: #2a1408; font-size: 16px; letter-spacing: 1px; font-weight: bold;
+    font-variant: small-caps;
+    margin-bottom: 6px;
+  }
+  .talentCard .tDesc { color: #3a2412; font-size: 12.5px; line-height: 1.5; }
+  .talentCard .tIcon { font-size: 26px; margin-bottom: 8px; color: #6e3a1a; }
   @media (max-width: 720px) {
     #talentChoices { grid-template-columns: 1fr; }
   }
@@ -656,9 +843,9 @@
   /* ===== QUEST JOURNAL OVERLAY (press J) ===== */
   #journalOverlay {
     position: absolute; inset: 0;
-    background: radial-gradient(ellipse at center, rgba(20,12,6,0.85), rgba(0,0,0,0.92));
+    background: rgba(18, 12, 6, 0.85);
     display: flex; align-items: center; justify-content: center;
-    z-index: 24; opacity: 0; pointer-events: none;
+    z-index: 9985; opacity: 0; pointer-events: none;
     transition: opacity 0.3s ease;
   }
   #journalOverlay.show { opacity: 1; pointer-events: auto; }
@@ -686,217 +873,302 @@
   .journalEntry.done .jStatus { color: #66e2c8; }
   #journalClose { text-align: center; color: #888; font-size: 11px; letter-spacing: 2px; margin-top: 14px; }
 
-  /* ===== OBJECTIVE PANEL — quest tracker bottom-right ===== */
+  /* ===== OBJECTIVE PANEL — streamlined quest tracker bottom-right =====
+     Layout: stage badge + title row, body line (color-coded per arc),
+     queued sub-quests stack, footer (bar + compass + distance), reward
+     flash, sticky badges. Left-edge accent recolors by arc.
+     Goals: legible at a glance, no corner brackets, no double border. */
   #objectivePanel {
     position: absolute; bottom: 16px; right: 16px;
     pointer-events: none;
-    font-family: "Courier New", monospace;
-    background: linear-gradient(180deg, rgba(28,18,10,0.94) 0%, rgba(10,6,3,0.96) 100%);
-    border: 3px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 22px rgba(255,204,51,0.35), inset 0 0 14px rgba(0,0,0,0.5);
-    padding: 14px 18px 16px;
-    min-width: 300px; max-width: 360px;
+    font-family: 'Georgia', serif;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    box-shadow:
+      0 4px 10px rgba(0,0,0,0.45);
+    padding: 9px 14px 10px 18px;
+    min-width: 240px; max-width: 300px;
     z-index: 11;
-    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-    opacity: 0; transform: translateX(20px);
-  }
-  #objectivePanel::before {
-    content: ""; position: absolute; top: -3px; left: -3px;
-    width: 14px; height: 14px;
-    border-top: 3px solid #ffe066; border-left: 3px solid #ffe066;
-    pointer-events: none;
-  }
-  #objectivePanel::after {
-    content: ""; position: absolute; bottom: -3px; right: -3px;
-    width: 14px; height: 14px;
-    border-bottom: 3px solid #ffe066; border-right: 3px solid #ffe066;
-    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    opacity: 0; transform: translateX(16px);
+    overflow: visible;
   }
   #objectivePanel.show { opacity: 1; transform: translateX(0); }
-  #objectivePanel .objHeader {
-    display: flex; align-items: center; gap: 6px;
-    color: #ffcc33; font-weight: bold; letter-spacing: 3px;
-    font-size: 11px; opacity: 0.95; margin-bottom: 8px;
-    text-shadow: 1px 1px 0 #000;
+
+  /* Left-edge accent strip — recolors by arc via the arc-* classes.
+     Adjusted to deep ink-on-parchment palette (gold, teal, blood-red, royal
+     purple, sage) for readability on the cream paper background. */
+  #objectivePanel .objAccent {
+    position: absolute;
+    top: 6px; bottom: 6px; left: 0;
+    width: 5px;
+    background: #c8a04c;     /* default = main quest gold */
+    border-radius: 0 2px 2px 0;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
   }
-  #objectivePanel .objHeader::before {
-    content: "✦"; color: #ffe066; font-size: 14px;
-    text-shadow: 0 0 8px rgba(255,200,80,0.7);
+  #objectivePanel.arc-main  .objAccent { background: #c8a04c; box-shadow: 1px 0 8px rgba(200,160,76,0.5); }
+  #objectivePanel.arc-side  .objAccent { background: #2a8a72; box-shadow: 1px 0 8px rgba(42,138,114,0.45); }
+  #objectivePanel.arc-trial .objAccent { background: #a82a18; box-shadow: 1px 0 8px rgba(168,42,24,0.5); }
+  #objectivePanel.arc-endless .objAccent { background: #6a3a8a; box-shadow: 1px 0 8px rgba(106,58,138,0.5); }
+  #objectivePanel.arc-done  .objAccent { background: #4a7a3a; box-shadow: 1px 0 6px rgba(74,122,58,0.4); }
+
+  #objectivePanel .objTopRow {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
   }
   #objectivePanel .objStageNum {
-    margin-left: 4px; padding: 1px 7px;
-    background: rgba(255,204,51,0.18);
-    color: #ffe066; font-size: 10px; letter-spacing: 1px;
-    border: 1px solid #ffcc33;
+    flex-shrink: 0;
+    padding: 2px 7px;
+    background: rgba(200,160,76,0.25);
+    color: #5a3a18; font-size: 10px; letter-spacing: 1px; font-weight: bold;
+    border: 1px solid #5a3a18;
+    border-radius: 2px;
+    font-family: 'Georgia', serif;
   }
-  #objectivePanel .objHeader .objJournalHint {
-    margin-left: auto; font-size: 9px; letter-spacing: 1px;
-    color: #998870; opacity: 0.85;
-  }
-  /* Now the title is the action verb (e.g. "GO TO MAYOR ALDRIC"), and the
-     body underneath gives one-sentence "where" context. Bigger font, brighter.*/
+  #objectivePanel.arc-side  .objStageNum { background: rgba(42,138,114,0.22); border-color: #2a5a4a; color: #1a4a3a; }
+  #objectivePanel.arc-trial .objStageNum { background: rgba(168,42,24,0.18); border-color: #6a2010; color: #6a1a08; }
+  #objectivePanel.arc-endless .objStageNum { background: rgba(106,58,138,0.18); border-color: #4a2a5a; color: #3a1a4a; }
+
   #objectivePanel .objTitle {
-    color: #ffe066; font-weight: bold; font-size: 18px;
-    letter-spacing: 1.5px; line-height: 1.2;
-    text-shadow: 2px 2px 0 #000, 0 0 12px rgba(255,200,80,0.4);
-    margin-bottom: 8px;
-    text-transform: uppercase;
+    flex: 1; min-width: 0;
+    color: #2a1408; font-weight: bold; font-size: 15px;
+    letter-spacing: 0.5px; line-height: 1.2;
+    font-variant: small-caps;
+    /* Two-line title support: clamp to two lines, ellipsize beyond. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
   }
+  #objectivePanel.arc-side  .objTitle { color: #1a4a3a; }
+  #objectivePanel.arc-trial .objTitle { color: #6a1a08; }
+  #objectivePanel.arc-endless .objTitle { color: #3a1a4a; }
+  #objectivePanel.arc-done  .objTitle { color: #2a4a18; }
+
+  #objectivePanel .objJournalHint {
+    flex-shrink: 0;
+    font-size: 9px; letter-spacing: 1px;
+    color: #6e3a1a; opacity: 0.85;
+    align-self: flex-start;
+    margin-top: 1px;
+    padding: 1px 5px;
+    border: 1px solid #6e3a1a;
+    border-radius: 2px;
+    background: rgba(255,232,180,0.4);
+    font-family: 'Georgia', serif;
+  }
+
   #objectivePanel .objBody {
-    color: #ddd6c4; font-size: 12px; line-height: 1.45;
-    text-shadow: 1px 1px 0 #000;
+    color: #3a2412; font-size: 12px; line-height: 1.45;
+    margin-bottom: 6px;
+  }
+  #objectivePanel .objBody:empty { display: none; }
+
+  /* Sub-quest stack — up to 2 queued objectives in smaller font.
+     Hidden when empty. Each line gets a leading "·" for rhythm. */
+  #objectivePanel .objStack {
+    display: flex; flex-direction: column; gap: 2px;
     margin-bottom: 8px;
   }
-  /* "Next:" line — the literal next action the player should take, bolder
-     than body. Renders only when set (we hide it when empty). */
-  #objectivePanel .objNext {
-    color: #66e2c8; font-size: 12px; font-weight: bold;
-    letter-spacing: 1px; line-height: 1.4;
-    text-shadow: 1px 1px 0 #000;
-    border-left: 3px solid #66e2c8; padding-left: 8px;
-    margin-bottom: 10px;
+  #objectivePanel .objStack:empty { display: none; }
+  #objectivePanel .objStack .objStackItem {
+    color: #5a3a18; font-size: 11px; letter-spacing: 0.3px;
+    line-height: 1.35;
+    padding-left: 11px;
+    position: relative;
+    font-family: 'Georgia', serif;
   }
-  #objectivePanel .objNext::before {
-    content: "▶ "; color: #66e2c8;
+  #objectivePanel .objStack .objStackItem::before {
+    content: "›"; position: absolute; left: 0;
+    color: #8a5a18; font-weight: bold;
   }
-  #objectivePanel .objNext:empty { display: none; }
-  /* Step pip row — five dots representing the five quest stages. Filled gold
-     for done, glowing gold for active, faded for locked. Gives an immediate
-     "where am I in the journey" read without forcing the player into the
-     journal. */
-  #objectivePanel .objSteps {
-    display: flex; gap: 6px; margin-top: 4px;
-    align-items: center;
+  #objectivePanel .objStack .objStackItem.done {
+    color: #4a6a3a; opacity: 0.7;
+    text-decoration: line-through;
+    text-decoration-color: rgba(74, 106, 58, 0.55);
   }
-  #objectivePanel .objStep {
-    flex: 1; height: 8px;
-    background: rgba(20, 12, 6, 0.85);
-    border: 2px solid #5a3a20;
-    transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+
+  #objectivePanel .objFooter {
+    display: flex; align-items: center; gap: 8px;
   }
-  #objectivePanel .objStep.done {
-    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 100%);
-    border-color: #ffcc33;
-  }
-  #objectivePanel .objStep.active {
-    background: linear-gradient(180deg, #fff7c8 0%, #ffe066 100%);
-    border-color: #ffcc33;
-    box-shadow: 0 0 12px rgba(255,220,120,0.85);
-    animation: stepPulse 1.6s ease-in-out infinite;
-  }
-  @keyframes stepPulse {
-    0%, 100% { box-shadow: 0 0 8px rgba(255,220,120,0.5); }
-    50%      { box-shadow: 0 0 16px rgba(255,230,150,1.0); }
-  }
-  #objectivePanel .objProgress {
-    margin-top: 8px; color: #66e2c8;
-    font-size: 12px; font-weight: bold; letter-spacing: 2px;
-    text-shadow: 1px 1px 0 #000;
-  }
-  #objectivePanel .objProgress:empty { display: none; }
   #objectivePanel .objBar {
-    margin-top: 6px; height: 6px;
-    background: rgba(20, 12, 6, 0.85);
-    border: 1px solid #5a3a20; border-radius: 2px;
+    flex: 1; height: 6px;
+    background: rgba(70, 38, 16, 0.18);
+    border: 1px solid #5a3a18; border-radius: 3px;
     overflow: hidden;
   }
   #objectivePanel .objBarFill {
     height: 100%; width: 0%;
-    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 100%);
+    background: linear-gradient(180deg, #d8b86a 0%, #b88a30 100%);
     transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  /* Distance-to-objective indicator. Lights up only when an active world
-     target exists. */
-  #objectivePanel .objDistance {
-    margin-top: 8px; padding-top: 8px;
-    border-top: 1px dashed #5a3a20;
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 10px; letter-spacing: 2px; color: #ddd6c4;
-    text-shadow: 1px 1px 0 #000;
+  #objectivePanel.arc-side  .objBarFill { background: linear-gradient(180deg, #5aa888 0%, #2a7a5a 100%); }
+  #objectivePanel.arc-trial .objBarFill { background: linear-gradient(180deg, #c84a30 0%, #8a2010 100%); }
+  #objectivePanel.arc-endless .objBarFill { background: linear-gradient(180deg, #9a6aaa 0%, #6a3a8a 100%); }
+
+  /* Compass arrow — ink triangle, no glow. */
+  #objectivePanel .objCompass {
+    flex-shrink: 0;
+    color: #5a3a18; font-size: 12px; font-weight: bold;
+    width: 14px; text-align: center;
+    transition: transform 0.18s ease, color 0.4s ease;
+    transform-origin: center;
   }
-  #objectivePanel .objDistance .objDist {
-    color: #ffe066; font-weight: bold;
+  #objectivePanel .objCompass.hidden { display: none; }
+  #objectivePanel.arc-side  .objCompass { color: #1a4a3a; }
+  #objectivePanel.arc-trial .objCompass { color: #6a1a08; }
+  #objectivePanel.arc-endless .objCompass { color: #3a1a4a; }
+
+  #objectivePanel .objDistance {
+    flex-shrink: 0;
+    font-size: 11px; letter-spacing: 0.5px; color: #5a3a18;
+    font-family: 'Georgia', serif; font-weight: bold;
+    min-width: 48px; text-align: right;
   }
   #objectivePanel .objDistance:empty { display: none; }
-  #objectivePanel.completed .objTitle { color: #66e2c8; }
+
+  /* Reward pill — pops on stage clear with icon prefix support.
+     Three flavors: gold (default), xp (cyan), item (gold-glow). */
+  #objectivePanel .objRewardFlash {
+    margin-top: 8px;
+    padding: 3px 8px;
+    background: rgba(34,76,52,0.55);
+    border-left: 3px solid #88ffd0;
+    color: #88ffd0; font-size: 11px; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+    opacity: 0; max-height: 0;
+    transition: opacity 0.4s ease, max-height 0.4s ease;
+    overflow: hidden;
+  }
+  #objectivePanel .objRewardFlash.show {
+    opacity: 1; max-height: 32px;
+  }
+  #objectivePanel .objRewardFlash.gold { color: #ffe066; border-left-color: #ffcc33; background: rgba(70,52,16,0.55); }
+  #objectivePanel .objRewardFlash.item { color: #fff7c8; border-left-color: #fff7c8; background: rgba(80,60,30,0.6); }
+
+  /* Sticky badges — small chip row below the panel showing active modal
+     states. Each badge is a colored pill; hidden by default, populated by
+     updateObjectiveHUD(). */
+  #objectivePanel .objBadges {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-top: 8px;
+  }
+  #objectivePanel .objBadges:empty { display: none; }
+  #objectivePanel .objBadges .objBadge {
+    padding: 1px 6px;
+    font-size: 9px; letter-spacing: 1px; font-weight: bold;
+    border: 1px solid currentColor;
+    text-shadow: 1px 1px 0 #000;
+    background: rgba(0,0,0,0.35);
+  }
+  #objectivePanel .objBadges .objBadge.endless { color: #d8a8ff; }
+  #objectivePanel .objBadges .objBadge.trial   { color: #ffb088; }
+  #objectivePanel .objBadges .objBadge.relic   { color: #fff7c8; }
+  #objectivePanel .objBadges .objBadge.side    { color: #88ffd0; }
+
+  #objectivePanel.completed .objAccent { background: #88ffd0; }
   #objectivePanel.completed .objBarFill { background: linear-gradient(180deg, #88ffd0 0%, #66e2c8 100%); }
   @keyframes objPulse {
-    0%, 100% { box-shadow: 0 0 0 2px #1a0a02, 0 0 18px rgba(255,204,51,0.30); }
-    50%      { box-shadow: 0 0 0 2px #1a0a02, 0 0 28px rgba(255,220,120,0.7); }
+    0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,0.55); }
+    50%      { box-shadow: 0 0 28px rgba(255,220,120,0.85); }
   }
   #objectivePanel.flash { animation: objPulse 0.7s ease-in-out 2; }
+  @media (max-width: 720px) {
+    #objectivePanel { bottom: 8px; right: 8px; min-width: 220px; max-width: 260px; }
+  }
 
   /* ===== STORY BANNER — full-screen narration card for big story beats ===== */
   /* Banners sit higher (top 28%) instead of dead-center, so they don't cover
      the player. Smaller scale, clearly dismissible via the corner X or by
      clicking the body. Default duration is short (2.4s) — long enough to
      read, short enough not to block movement. */
+  /* Story banner — full parchment proclamation that pops on big plot beats. */
   #storyBanner {
     position: absolute; top: 28%; left: 50%;
     transform: translate(-50%, -50%) scale(0.96);
-    width: min(560px, 80vw);
+    width: min(620px, 84vw);
     pointer-events: none; opacity: 0;
-    background: rgba(8, 4, 2, 0.92);
-    border: 4px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 60px rgba(255,180,60,0.45);
-    padding: 18px 22px 16px;
-    z-index: 14;
-    font-family: "Courier New", monospace;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 4px double #3a2410;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px #2a1408, 0 14px 30px rgba(0,0,0,0.6),
+      inset 0 0 0 3px rgba(210, 180, 130, 0.32);
+    padding: 22px 28px 20px;
+    z-index: 9970;
+    font-family: 'Georgia', serif;
     text-align: center;
     transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
     cursor: pointer;
   }
   #storyBanner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
   #storyBanner .stTitle {
-    color: #ffcc33; font-size: 18px; letter-spacing: 4px; font-weight: bold;
-    margin-bottom: 8px; text-shadow: 2px 2px 0 #000;
-    padding-right: 26px; /* leave room for the X */
+    color: #5a2a08; font-size: 20px; letter-spacing: 4px; font-weight: bold;
+    font-variant: small-caps;
+    margin-bottom: 10px;
+    padding-right: 28px;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
   }
   #storyBanner .stBody {
-    color: #ddd6c4; font-size: 13px; line-height: 1.45;
-    text-shadow: 1px 1px 0 #000;
+    color: #2a1408; font-size: 13.5px; line-height: 1.5;
+    font-style: italic;
   }
   #storyBanner .stHint {
-    margin-top: 10px;
-    color: #998870; font-size: 10px; letter-spacing: 2px;
-    opacity: 0.7;
+    margin-top: 12px;
+    color: #6e3a1a; font-size: 10px; letter-spacing: 2px;
+    font-variant: small-caps;
+    opacity: 0.75;
   }
   #storyBannerClose {
-    position: absolute; top: 4px; right: 6px;
+    display: none;     /* X removed by request — banner auto-dismisses */
+    position: absolute; top: 6px; right: 8px;
     width: 24px; height: 24px;
-    background: transparent; border: 2px solid #ffcc33;
-    color: #ffcc33; font-family: 'Courier New', monospace; font-weight: bold;
+    background: rgba(210, 180, 130, 0.30); border: 2px solid #3a2410;
+    color: #5a2a08; font-family: 'Georgia', serif; font-weight: bold;
     font-size: 14px; line-height: 18px; text-align: center;
     cursor: pointer; padding: 0;
+    border-radius: 50%;
     transition: background 0.15s, color 0.15s;
   }
-  #storyBannerClose:hover { background: #ffcc33; color: #1a0a02; }
+  #storyBannerClose:hover { background: #6e3a1a; color: #f3dca8; }
 
   /* ===== INTERACT PROMPT (floating "Press E to talk" near NPCs) ===== */
+  /* Interact prompt — parchment scrap that floats near the NPC. JS positions
+     it via .left/.top in screen-space (no longer locked to the player). */
   #interactPrompt {
     position: absolute; top: 64%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.92);
+    transform: translate(-50%, -50%) scale(0.96) translateY(4px);
     pointer-events: none; opacity: 0;
-    transition: opacity 0.16s ease-out, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
-    font-family: "Courier New", monospace; font-weight: bold;
-    font-size: 18px; letter-spacing: 2px;
-    color: #ffe066;
-    text-shadow: 2px 0 0 #1a0a02, 0 2px 0 #1a0a02, -2px 0 0 #1a0a02, 0 -2px 0 #1a0a02;
-    background: rgba(20, 12, 6, 0.92);
-    padding: 10px 20px;
-    border: 3px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 18px rgba(255, 204, 51, 0.45);
-    z-index: 15;  /* above HUD, below modals/title overlay */
+    transition: opacity 0.32s ease-out, transform 0.32s ease-out;
+    font-family: 'Georgia', serif; font-weight: bold;
+    font-size: 15px; letter-spacing: 1px;
+    color: #2a1408;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    padding: 8px 16px;
+    border: 2px solid #3a2410;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px #2a1408,
+      0 6px 12px rgba(0,0,0,0.5),
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32);
+    z-index: 15;
+    white-space: nowrap;
+    font-variant: small-caps;
   }
-  #interactPrompt.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #interactPrompt.show { opacity: 1; transform: translate(-50%, -50%) scale(1) translateY(0); }
   #interactPrompt .key {
     display: inline-block;
-    background: #ffcc33; color: #1a0a02;
-    padding: 3px 10px;
+    background: #5a3a18; color: #f3dca8;
+    padding: 2px 8px;
     margin-right: 8px;
-    text-shadow: none;
-    font-size: 16px;
-    border: 2px solid #1a0a02;
+    font-size: 14px;
+    border: 2px solid #2a1408;
+    border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.18);
+    font-variant: normal;
   }
 
   /* ===== DIALOG BOX — full visual redesign =====
@@ -907,173 +1179,133 @@
      open and fades out smoothly on close. */
   #dialogBox {
     position: absolute; bottom: 6%; left: 50%;
-    transform: translate(-50%, 30px) scale(0.94);
-    width: min(780px, 92vw);
+    transform: translate(-50%, 16px) scale(0.985);
+    width: min(720px, 92vw);
     pointer-events: none; opacity: 0;
-    transition: opacity 0.3s ease-out, transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
-    font-family: "Courier New", monospace;
-    z-index: 12;
-    will-change: transform, opacity;
-    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55));
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+    font-family: 'Georgia', serif;
+    z-index: 9988;
+    filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.5));
   }
   #dialogBox.show {
     opacity: 1; pointer-events: auto;
     transform: translate(-50%, 0) scale(1);
   }
   #dialogFrame {
-    background: linear-gradient(180deg, rgba(34, 20, 10, 0.97) 0%, rgba(14, 7, 3, 0.97) 100%);
-    border: 4px solid #ffcc33;
-    box-shadow:
-      0 0 0 2px #5a3a20,
-      0 0 0 4px #1a0a02,
-      0 0 32px rgba(255, 170, 60, 0.45),
-      inset 0 0 18px rgba(0, 0, 0, 0.85),
-      inset 0 1px 0 rgba(255, 220, 130, 0.18);
-    padding: 0;
-    color: #f0e8d8;
+    background: url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    color: #2a1408;
     position: relative;
     overflow: hidden;
-  }
-  /* Soft pulsing inner glow on the border for atmosphere — never fully off */
-  #dialogFrame::before {
-    content: '';
-    position: absolute; inset: 0;
-    pointer-events: none;
-    box-shadow: inset 0 0 24px rgba(255, 200, 100, 0.0);
-    animation: dialogPulse 2.4s ease-in-out infinite;
-  }
-  @keyframes dialogPulse {
-    0%, 100% { box-shadow: inset 0 0 22px rgba(255, 200, 100, 0.10); }
-    50%      { box-shadow: inset 0 0 30px rgba(255, 200, 100, 0.22); }
+    image-rendering: pixelated;
   }
   .shopCloseBtn, .dialogCloseBtn {
     position: absolute;
-    top: 10px; right: 10px;
-    width: 32px; height: 32px;
-    background: transparent; color: #ffe066;
-    border: 1px solid rgba(255, 224, 102, 0.18);
-    border-radius: 4px; font-size: 16px; line-height: 1;
-    cursor: pointer; z-index: 60; pointer-events: auto;
-    transition: all 0.18s ease;
+    top: 8px; right: 8px;
+    width: 30px; height: 30px;
+    background: #6b3a1a; color: #f4d68a;
+    border: 2px solid #2a1408;
+    border-radius: 50%;
+    font-family: 'Georgia', serif;
+    font-size: 18px; line-height: 24px; font-weight: bold;
+    cursor: pointer; z-index: 9999; pointer-events: auto;
+    padding: 0; text-align: center;
+    transition: background 0.15s ease, transform 0.15s ease;
   }
   .shopCloseBtn:hover, .dialogCloseBtn:hover {
-    background: rgba(255, 204, 51, 0.12);
-    border-color: #ffe066; color: #fff;
-    transform: rotate(90deg);
+    background: #c8a04c; color: #1a0a02;
+    transform: scale(1.1);
   }
-  /* Speaker — header bar with bottom border, glowing name */
+  /* Speaker — small-caps header on a darker paper strip */
   #dialogSpeaker {
     display: block;
-    background: linear-gradient(180deg, rgba(90, 58, 28, 0.78), rgba(40, 22, 10, 0.55));
-    border-bottom: 2px solid #ffcc33;
-    padding: 13px 24px 11px;
-    font-size: 19px; font-weight: bold; letter-spacing: 5px;
-    color: #ffe066;
-    text-shadow: 2px 2px 0 #1a0a02, 0 0 14px rgba(255, 170, 60, 0.55);
-    text-transform: uppercase;
+    background: rgba(90, 58, 28, 0.18);
+    border-bottom: 1px solid rgba(58, 36, 16, 0.55);
+    padding: 10px 22px 8px;
+    font-family: 'Georgia', serif;
+    font-size: 16px; font-weight: bold; letter-spacing: 3px;
+    color: #5a2a08;
+    font-variant: small-caps;
   }
   #dialogSpeaker:empty { display: none; }
-  /* Body text — generous padding, soft cream color, blinking cursor while typing */
+  /* Body text — generous padding, deep brown ink */
   #dialogText {
-    padding: 18px 26px 4px;
-    font-size: 16px; line-height: 1.7; letter-spacing: 0.6px;
-    color: #ece4d0; min-height: 60px;
+    padding: 16px 24px 6px;
+    font-family: 'Georgia', serif;
+    font-size: 15px; line-height: 1.6; letter-spacing: 0.3px;
+    color: #2a1408; min-height: 56px;
   }
   #dialogText .tw-cursor {
     display: inline-block;
-    width: 9px; height: 1.0em;
-    background: #ffcc33;
+    width: 7px; height: 1.0em;
+    background: #5a2a08;
     margin-left: 3px;
     vertical-align: text-bottom;
-    box-shadow: 0 0 8px rgba(255, 204, 51, 0.7);
     animation: twBlink 0.7s steps(1) infinite;
   }
   @keyframes twBlink {
     0%, 50%   { opacity: 1; }
     51%, 100% { opacity: 0; }
   }
-  /* Choices — vertical list with animated arrow indicator (no manual prefix) */
+  /* Choices — vertical list of paper-card buttons */
   #dialogChoices {
-    margin: 6px 18px 4px;
+    margin: 4px 16px 4px;
     display: flex; flex-direction: column; gap: 6px;
     position: relative;
   }
   #dialogChoices:empty { display: none; }
+  /* Each option is a clean paper card. Solid cream fill (no scaled sprite),
+     consistent left ink-rail, deep-brown ink. Single hover/sel state, no
+     conflicting overrides. */
   .dialogChoice {
-    background: rgba(40, 22, 10, 0.7);
-    border: 2px solid #5a3a20;
-    padding: 11px 16px 11px 38px;
-    color: #ddd6c4;
-    font-family: inherit; font-size: 15px; letter-spacing: 1.5px;
+    background: rgba(244, 220, 168, 0.85);
+    border: 1px solid #3a2410;
+    border-left: 4px solid #6e3a1a;
+    padding: 11px 16px 11px 18px;
+    color: #2a1408;
+    font-family: 'Georgia', serif;
+    font-size: 14.5px;
+    line-height: 1.35;
+    letter-spacing: 0.4px;
     cursor: pointer; text-align: left;
     pointer-events: auto;
     position: relative;
-    transition: background 0.18s ease, border-color 0.18s ease,
-                color 0.18s ease, transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.18s ease, padding-left 0.18s ease;
-    border-radius: 2px;
+    transition: background 0.12s ease, border-left-color 0.12s ease, transform 0.12s ease;
   }
-  /* The › arrow lives in CSS, not in textContent. It fades + slides in
-     when the row gets the .sel class. */
-  .dialogChoice::before {
-    content: '›';
-    position: absolute;
-    left: 14px; top: 50%;
-    transform: translateY(-50%) translateX(-6px);
-    color: #ffcc33;
-    font-size: 24px; font-weight: bold;
-    line-height: 1;
-    opacity: 0;
-    text-shadow: 0 0 8px rgba(255, 204, 51, 0.7);
-    transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .dialogChoice:hover:not(.sel) {
-    background: rgba(56, 34, 14, 0.88);
-    border-color: #aa8030;
-    color: #fff5cc;
+  .dialogChoice:hover {
+    background: rgba(255, 232, 180, 0.95);
+    border-left-color: #c8a04c;
+    transform: translateX(2px);
   }
   .dialogChoice.sel {
-    background: linear-gradient(90deg, rgba(110, 70, 28, 0.96) 0%, rgba(70, 44, 18, 0.96) 100%);
-    border-color: #ffcc33;
-    color: #ffffff;
-    transform: translateX(8px);
-    padding-left: 42px;
-    box-shadow:
-      0 0 14px rgba(255, 204, 51, 0.45),
-      inset 0 0 0 1px rgba(255, 224, 102, 0.30);
-    text-shadow: 0 0 8px rgba(255, 224, 102, 0.55);
+    background: rgba(255, 232, 180, 1);
+    border-left-color: #c8a04c;
+    border-left-width: 6px;
+    padding-left: 16px;
+    color: #1a0a04;
+    font-weight: bold;
+    transform: translateX(2px);
   }
-  .dialogChoice.sel::before {
-    opacity: 1;
-    transform: translateY(-50%) translateX(2px);
-  }
-  /* Quest choice — always shown FIRST, with a yellow exclamation badge so the
-     player can tell at a glance which option progresses the active quest.
-     Slightly heavier border + warm tint to differentiate from regular options. */
+  /* Quest choice — same card vocabulary, just a deep-red rail + a small
+     amber "!" badge inline with the title so it's instantly identifiable
+     without changing the colour of the choice text. */
   .dialogChoice.questChoice {
-    border-color: #ffcc33;
-    background: rgba(58, 36, 14, 0.85);
+    border-left-color: #6e1818;
+  }
+  .dialogChoice.questChoice.sel {
+    border-left-color: #b8302a;
   }
   .dialogChoice.questChoice .questBadge {
     display: inline-block;
-    color: #1a0a02;
-    background: #ffcc33;
+    color: #f3dca8;
+    background: #6e1818;
     font-weight: bold;
     padding: 1px 7px;
     margin-right: 8px;
-    border-radius: 3px;
-    text-shadow: none;
-    font-size: 13px;
-    letter-spacing: 0;
-    box-shadow: 0 0 6px rgba(255, 204, 51, 0.55);
-  }
-  .dialogChoice.questChoice {
-    color: #ffe8a8;
-  }
-  .dialogChoice.questChoice.sel {
-    background: linear-gradient(90deg, rgba(160, 100, 32, 0.96) 0%, rgba(110, 70, 24, 0.96) 100%);
-    border-color: #ffe066;
-    color: #ffffff;
+    border-radius: 2px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    font-variant: small-caps;
   }
   /* Continue prompt — plain slow-blinking text. Sits ABOVE the secondary hint
      line so it's the first thing the player notices below the body text.
@@ -1082,47 +1314,40 @@
   #dialogContinue {
     display: block;
     text-align: center;
-    padding: 14px 24px 8px;
-    margin-top: 6px;
-    background: transparent;
-    font-size: 18px;
-    letter-spacing: 4px;
-    color: #ffe066;
-    text-transform: uppercase;
+    padding: 10px 24px 8px;
+    margin-top: 4px;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: #5a3a18;
+    font-variant: small-caps;
     font-weight: bold;
-    text-shadow: 1px 1px 0 #1a0a02, 0 0 12px rgba(255, 204, 51, 0.4);
     animation: dialogContinueBlink 2.4s ease-in-out infinite;
   }
-  /* Slow soft blink — fades the whole prompt in and out. No size or color
-     swap, just gentle opacity. Easy on the eyes; doesn't fight the dialog
-     text for attention. */
   @keyframes dialogContinueBlink {
-    0%, 100% { opacity: 0.30; }
+    0%, 100% { opacity: 0.45; }
     50%      { opacity: 1.00; }
   }
-  /* Secondary hint — small line above the continue band for the rest of the
-     keys (navigate, confirm, close). This is the spot where SPACE info lives
-     now that the bottom prompt is plain text, not a key chip. */
   #dialogHint {
-    margin: 0 0 0;
-    padding: 4px 24px 12px;
-    background: transparent;
+    padding: 4px 24px 10px;
+    font-family: 'Georgia', serif;
     font-size: 11px;
-    color: #998870;
-    letter-spacing: 1.6px;
+    color: #6e3a1a;
+    letter-spacing: 1.4px;
     text-align: center;
+    font-variant: small-caps;
+    opacity: 0.85;
   }
   #dialogHint:empty { display: none; }
   #dialogHint kbd {
     display: inline-block;
-    background: rgba(255, 204, 51, 0.15);
-    border: 1px solid rgba(255, 204, 51, 0.35);
+    background: #5a3a18; color: #f3dca8;
+    border: 1px solid #2a1408;
     border-radius: 2px;
     padding: 1px 6px;
     margin: 0 2px;
-    font-family: inherit;
+    font-family: 'Georgia', serif;
     font-size: 10px;
-    color: #ffe066;
     letter-spacing: 1px;
   }
   /* ===== ABILITY BAR (bottom-CENTER, Q + R slot icons with cooldowns) =====
@@ -1134,70 +1359,91 @@
     bottom: 24px; left: 50%; transform: translateX(-50%);
     display: flex; flex-direction: row; gap: 14px;
     pointer-events: none; z-index: 6;
-    font-family: "Courier New", monospace;
+    font-family: 'Georgia', serif;
   }
   @media (max-width: 720px) {
     #abilityBar { bottom: 72px; }  /* clear thumb-zone on touch */
   }
+  /* Each ability slot is a parchment plaque with the keybind stamped at its
+     corner. Cooldown sweeps a darkened veil up from the bottom. */
   .abilitySlot {
     position: relative;
     width: 56px; height: 56px;
-    background: rgba(20, 12, 6, 0.78);
-    border: 3px solid #5a3a20;
-    box-shadow: 0 0 0 2px #1a0a02, inset 0 0 8px rgba(0,0,0,0.7);
-    display: none;     /* hidden by default; shown when an ability is bound */
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 2px solid #3a2410;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px #2a1408,
+      0 4px 10px rgba(0,0,0,0.45),
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32);
+    display: none;
   }
   .abilitySlot.bound { display: block; }
-  .abilitySlot.ready { border-color: #ffcc33; box-shadow: 0 0 0 2px #5a3a20, 0 0 16px rgba(255,170,60,0.5), inset 0 0 8px rgba(0,0,0,0.6); }
+  .abilitySlot.ready {
+    box-shadow: 0 0 0 1px #2a1408, 0 0 18px rgba(200,160,76,0.55),
+      0 4px 10px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(210, 180, 130, 0.32);
+  }
   .abilityKey {
-    position: absolute; top: -4px; left: -4px;
-    width: 18px; height: 18px;
-    background: #ffcc33; color: #1a0a02;
-    font-size: 13px; font-weight: bold;
-    text-align: center; line-height: 18px;
+    position: absolute; top: -6px; left: -6px;
+    width: 20px; height: 20px;
+    background: #5a3a18; color: #f3dca8;
+    border: 2px solid #2a1408;
+    border-radius: 3px;
+    font-size: 12px; font-weight: bold;
+    text-align: center; line-height: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.18);
     z-index: 2;
   }
   .abilityIcon {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 22px; font-weight: bold; letter-spacing: 1px;
-    color: #ffe066;
-    text-shadow: 2px 2px 0 #1a0a02;
+    color: #5a2a08;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
   }
   .abilityCooldown {
     position: absolute; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(42, 20, 8, 0.55);
     pointer-events: none;
     transition: height 0.08s linear;
-    height: 0%;       /* JS sets this 0-100% */
+    height: 0%;
   }
   .abilityName {
     position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-    margin-top: 4px;
+    margin-top: 6px;
     font-size: 10px; letter-spacing: 1.5px;
-    color: #ddd6c4;
+    color: #2a1408; font-family: 'Georgia', serif;
+    font-variant: small-caps;
     white-space: nowrap;
-    text-shadow: 1px 1px 0 #1a0a02;
-    opacity: 0.8;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.45);
+    background: rgba(210, 180, 130, 0.42);
+    border: 1px solid #5a3a18;
+    border-radius: 2px;
+    padding: 1px 6px;
   }
   /* ===== SHOP OVERLAY (between-wave rest + buy phase) ===== */
   #shopOverlay {
     position: fixed; inset: 0;
-    background: rgba(8, 4, 2, 0.78);
-    z-index: 50;
+    background: rgba(20, 10, 4, 0.65);
+    z-index: 9995;
     display: flex; align-items: center; justify-content: center;
-    font-family: "Courier New", monospace;
+    font-family: 'Georgia', serif;
+    backdrop-filter: blur(2px);
   }
   #shopOverlay.hidden { display: none; }
   #shopFrame {
     position: relative;
-    width: min(560px, 92vw);
+    width: min(580px, 92vw);
     max-height: 88vh;
-    background: rgba(20, 12, 6, 0.95);
-    border: 4px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 32px rgba(255, 170, 60, 0.45), inset 0 0 16px rgba(0,0,0,0.7);
-    padding: 20px 24px 18px;
-    color: #ffe066;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 4px double #3a2410;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px #2a1408, 0 16px 36px rgba(0,0,0,0.6),
+      inset 0 0 0 3px rgba(210, 180, 130, 0.32);
+    padding: 22px 26px 18px;
+    color: #2a1408;
     display: flex; flex-direction: column; gap: 12px;
     overflow: hidden;
   }
@@ -1205,183 +1451,255 @@
     font-size: 22px; font-weight: bold;
     letter-spacing: 4px;
     text-align: center;
-    color: #ffe066;
-    text-shadow: 2px 2px 0 #1a0a02, 0 0 12px rgba(255, 170, 60, 0.6);
-    border-bottom: 2px solid #5a3a20;
+    color: #5a2a08;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
+    border-bottom: 1px solid rgba(110, 58, 26, 0.4);
     padding-bottom: 8px;
   }
   #shopSubtitle {
-    font-size: 12px; letter-spacing: 1.5px;
-    text-align: center; color: #ddd6c4;
+    font-size: 12.5px; letter-spacing: 1.5px;
+    text-align: center; color: #5a3a18;
+    font-style: italic;
   }
   #shopGoldDisplay {
     text-align: center;
-    font-size: 16px; letter-spacing: 3px;
-    color: #ffcc33;
-    background: rgba(0,0,0,0.55);
-    border: 2px solid #5a3a20;
-    box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+    font-size: 14px; letter-spacing: 3px;
+    color: #5a3a18;
+    font-family: 'Georgia', serif;
+    font-variant: small-caps;
+    background: rgba(210, 180, 130, 0.30);
+    border: 2px solid #3a2410;
+    border-radius: 4px;
     padding: 6px 12px;
   }
-  #shopGoldDisplay span { font-size: 22px; font-weight: bold; color: #ffe066; }
+  #shopGoldDisplay span { font-size: 22px; font-weight: bold; color: #6e3a1a; }
   #shopItems {
     flex: 1; overflow-y: auto;
-    display: flex; flex-direction: column; gap: 6px;
+    display: flex; flex-direction: column; gap: 8px;
     padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #8a5a30 transparent;
   }
   .shopItem {
     display: flex; align-items: center;
-    background: rgba(0,0,0,0.45);
-    border: 2px solid #5a3a20;
-    padding: 8px 10px;
+    background: url('MagicalUI/Paper2.png') 0 0 / 100% 100% no-repeat, rgba(232, 208, 156, 0.7);
+    border: 2px solid #3a2410;
+    border-left-width: 4px;
+    padding: 10px 12px;
     gap: 10px;
+    image-rendering: pixelated;
+    transition: filter 0.12s ease, transform 0.12s ease;
   }
-  .shopItem.bought { opacity: 0.4; border-color: #2a1a0a; }
+  .shopItem:hover { filter: brightness(1.06); transform: translateX(2px); }
+  .shopItem.bought {
+    opacity: 0.45;
+    border-left-color: #4a8a3a;
+    filter: saturate(0.6);
+  }
   .shopItemInfo { flex: 1; min-width: 0; }
   .shopItemName {
-    font-size: 13px; font-weight: bold; letter-spacing: 1.5px;
-    color: #ffe066;
+    font-size: 14px; font-weight: bold; letter-spacing: 0.5px;
+    color: #2a1408;
+    font-variant: small-caps;
   }
   .shopItemDesc {
-    font-size: 11px; letter-spacing: 0.5px; color: #ddd6c4;
-    margin-top: 2px;
+    font-size: 12px; line-height: 1.4; color: #3a2412;
+    margin-top: 3px;
   }
   .shopBuyBtn {
-    background: #ffcc33; color: #1a0a02;
-    border: 2px solid #5a3a20;
-    box-shadow: inset 0 0 0 2px #ffe066, 0 2px 0 #5a3a20;
-    padding: 6px 12px;
-    font-family: "Courier New", monospace;
+    background: #6e3a1a; color: #f3dca8;
+    border: 2px solid #2a1408;
+    border-radius: 3px;
+    padding: 7px 14px;
+    font-family: 'Georgia', serif;
     font-size: 12px; font-weight: bold; letter-spacing: 1.5px;
+    font-variant: small-caps;
     cursor: pointer; min-width: 88px;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.18), 0 2px 0 #2a1408;
+    transition: transform 0.1s, background 0.1s;
   }
-  .shopBuyBtn:hover:not(:disabled) { background: #ffe066; }
-  .shopBuyBtn:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 2px #ffe066, 0 0 0 #5a3a20; }
+  .shopBuyBtn:hover:not(:disabled) { background: #8a4a22; }
+  .shopBuyBtn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,232,180,0.18), 0 0 0 #2a1408; }
   .shopBuyBtn:disabled {
-    background: #5a3a20; color: #2a1a0a;
+    background: #5a4a3a; color: #2a1408;
     cursor: not-allowed;
-    box-shadow: inset 0 0 0 2px #4a2a10;
+    opacity: 0.6;
   }
   #shopContinueBtn {
-    background: #1a0a02; color: #ffcc33;
-    border: 3px solid #ffcc33;
-    box-shadow: inset 0 0 0 2px #1a0a02, 0 0 18px rgba(255, 170, 60, 0.45);
+    background: #5a2a08; color: #f3dca8;
+    border: 3px solid #2a1408;
+    border-radius: 4px;
     padding: 12px 20px;
-    font-family: "Courier New", monospace;
+    font-family: 'Georgia', serif;
     font-size: 16px; font-weight: bold; letter-spacing: 4px;
+    font-variant: small-caps;
     cursor: pointer;
     margin-top: 6px;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.2), 0 4px 0 #2a1408;
   }
-  #shopContinueBtn:hover { background: #2a1a0a; color: #ffe066; }
-  #shopContinueBtn:active { transform: translateY(1px); }
+  #shopContinueBtn:hover { background: #6e3a1a; }
+  #shopContinueBtn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,232,180,0.2), 0 2px 0 #2a1408; }
 
   /* ===== PAUSE OVERLAY (Esc) ===== */
   #pauseOverlay {
     position: fixed; inset: 0;
-    background: rgba(8, 4, 2, 0.78);
-    z-index: 25; /* below shop modal but above HUD/flashes */
+    background: rgba(20, 10, 4, 0.62);
+    z-index: 9990;
     display: flex; align-items: center; justify-content: center;
-    font-family: "Courier New", monospace;
+    font-family: 'Georgia', serif;
+    backdrop-filter: blur(2px);
   }
   #pauseOverlay.hidden { display: none; }
   #pauseFrame {
-    width: min(360px, 90vw);
-    background: rgba(20, 12, 6, 0.95);
-    border: 4px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 32px rgba(255,170,60,0.4);
-    padding: 24px;
-    color: #ffe066;
+    width: min(380px, 90vw);
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 4px double #3a2410;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px #2a1408, 0 14px 30px rgba(0,0,0,0.6),
+      inset 0 0 0 3px rgba(210, 180, 130, 0.32);
+    padding: 28px 24px;
+    color: #2a1408;
     display: flex; flex-direction: column; gap: 14px; align-items: center;
   }
   #pauseTitle {
-    font-size: 32px; letter-spacing: 8px; font-weight: bold;
-    text-shadow: 3px 3px 0 var(--red-dark);
+    font-size: 30px; letter-spacing: 8px; font-weight: bold;
+    color: #5a2a08; font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.6);
+    margin-bottom: 4px;
   }
-  #pauseResumeBtn, #pauseRestartBtn {
-    background: #1a0a02; color: #ffcc33;
-    border: 3px solid #ffcc33;
-    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #5a3a20;
-    padding: 12px 32px;
-    font-family: inherit; font-size: 16px; font-weight: bold; letter-spacing: 4px;
-    cursor: pointer; min-width: 200px;
-    transition: transform 0.1s, background 0.1s;
-  }
-  #pauseResumeBtn:hover, #pauseRestartBtn:hover, #pauseSettingsBtn:hover, #pauseMainMenuBtn:hover { background: #2a1a0a; color: #ffe066; }
-  #pauseResumeBtn:active, #pauseRestartBtn:active, #pauseSettingsBtn:active, #pauseMainMenuBtn:active { transform: translateY(2px); box-shadow: inset 0 0 0 2px #1a0a02, 0 2px 0 #5a3a20; }
+  #pauseResumeBtn, #pauseRestartBtn,
   #pauseSettingsBtn, #pauseMainMenuBtn {
-    background: #1a0a02; color: #ffcc33;
-    border: 3px solid #ffcc33;
-    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #5a3a20;
-    padding: 12px 32px;
-    font-family: inherit; font-size: 16px; font-weight: bold; letter-spacing: 4px;
-    cursor: pointer; min-width: 200px;
+    background: #5a2a08; color: #f3dca8;
+    border: 3px solid #2a1408;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.2), 0 4px 0 #2a1408;
+    padding: 11px 28px;
+    font-family: 'Georgia', serif;
+    font-size: 14px; font-weight: bold; letter-spacing: 4px;
+    font-variant: small-caps;
+    cursor: pointer; min-width: 220px;
     transition: transform 0.1s, background 0.1s;
+  }
+  #pauseResumeBtn:hover, #pauseRestartBtn:hover,
+  #pauseSettingsBtn:hover, #pauseMainMenuBtn:hover { background: #6e3a1a; }
+  #pauseResumeBtn:active, #pauseRestartBtn:active,
+  #pauseSettingsBtn:active, #pauseMainMenuBtn:active {
+    transform: translateY(2px);
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.2), 0 2px 0 #2a1408;
   }
 
-  /* ===== MAIN MENU buttons ===== */
-  #overMenu { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  /* Secondary plain-text buttons (e.g. game-over respawn). Match the
+     parchment-plaque style of the primary main-menu paBtn. */
   #overlay button.secondary {
-    background: rgba(20, 12, 6, 0.85); color: #ffe066;
-    border: 3px solid #5a3a20;
-    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #1a0a02;
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    color: #5a2a08;
+    font-family: 'Georgia', serif;
+    font-variant: small-caps;
+    border: 3px solid #2a1408;
+    border-radius: 4px;
+    box-shadow:
+      inset 0 0 0 2px rgba(210, 180, 130, 0.32),
+      0 5px 0 #2a1408,
+      0 8px 14px rgba(0,0,0,0.45);
     font-size: 18px; padding: 12px 36px;
+    letter-spacing: 4px; font-weight: bold;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
   }
-  #overlay button.secondary:hover { background: #2a1a0a; border-color: #ffcc33; color: #fff; }
+  #overlay button.secondary:hover { transform: translateY(-2px); filter: brightness(1.05); }
+  #overlay button.secondary:active {
+    transform: translateY(3px);
+    box-shadow: inset 0 0 0 2px rgba(210, 180, 130, 0.32), 0 2px 0 #2a1408, 0 4px 8px rgba(0,0,0,0.45);
+  }
   #overlay button.secondary:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* ===== SETTINGS OVERLAY ===== */
   #settingsOverlay {
     position: fixed; inset: 0;
-    background: rgba(8, 4, 2, 0.84);
-    z-index: 30;
+    background: rgba(20, 10, 4, 0.62);
+    z-index: 9991;
     display: flex; align-items: center; justify-content: center;
-    font-family: "Courier New", monospace;
+    font-family: 'Georgia', serif;
+    backdrop-filter: blur(2px);
   }
   #settingsOverlay.hidden { display: none; }
   #settingsFrame {
-    width: min(460px, 94vw);
+    width: min(480px, 94vw);
     max-height: 92vh;
     overflow-y: auto;
-    background: rgba(20, 12, 6, 0.97);
-    border: 4px solid #ffcc33;
-    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 32px rgba(255,170,60,0.4);
+    background:
+      url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+    border: 4px double #3a2410;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px #2a1408, 0 14px 30px rgba(0,0,0,0.6),
+      inset 0 0 0 3px rgba(210, 180, 130, 0.32);
     padding: 24px 28px;
-    color: #ffe066;
+    color: #2a1408;
     display: flex; flex-direction: column; gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: #8a5a30 transparent;
   }
   #settingsTitle {
-    font-size: 26px; letter-spacing: 6px; font-weight: bold; text-align: center;
-    text-shadow: 2px 2px 0 var(--red-dark);
-    border-bottom: 2px solid #5a3a20; padding-bottom: 10px;
+    font-size: 24px; letter-spacing: 6px; font-weight: bold; text-align: center;
+    color: #5a2a08; font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
+    border-bottom: 1px solid rgba(110, 58, 26, 0.4); padding-bottom: 10px;
   }
+  /* Each setting row sits on a small Paper2 scrap so the panel reads as a
+     stack of inked entries on a parchment, not a flat list. */
   .settingRow {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 14px; letter-spacing: 1.5px;
-    color: #ddd6c4;
+    font-size: 14px; letter-spacing: 1.2px;
+    color: #2a1408;
+    font-variant: small-caps;
+    padding: 8px 12px;
+    background: url('MagicalUI/Paper2.png') 0 0 / 100% 100% no-repeat, rgba(232, 208, 156, 0.55);
+    border: 1px solid #3a2410;
+    image-rendering: pixelated;
+    min-height: 32px;
   }
-  .settingRow input[type="range"] { width: 180px; accent-color: #ffcc33; }
-  .settingRow input[type="checkbox"] { width: 22px; height: 22px; accent-color: #ffcc33; cursor: pointer; }
+  .settingRow > span:first-child { font-weight: bold; }
+  .settingRow input[type="range"] {
+    width: 180px;
+    accent-color: #6e3a1a;
+    cursor: pointer;
+  }
+  .settingRow input[type="checkbox"] {
+    width: 22px; height: 22px;
+    accent-color: #6e3a1a;
+    cursor: pointer;
+  }
   #settingsBackBtn {
-    background: #1a0a02; color: #ffcc33;
-    border: 3px solid #ffcc33;
-    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #5a3a20;
-    padding: 10px 24px;
-    font-family: inherit; font-size: 14px; font-weight: bold; letter-spacing: 4px;
-    cursor: pointer; align-self: center; margin-top: 8px;
+    background: #5a2a08; color: #f3dca8;
+    border: 3px solid #2a1408;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.2), 0 4px 0 #2a1408;
+    padding: 11px 32px;
+    font-family: 'Georgia', serif;
+    font-size: 14px; font-weight: bold; letter-spacing: 4px;
+    font-variant: small-caps;
+    cursor: pointer; align-self: center; margin-top: 12px;
+    min-width: 200px;
+    transition: transform 0.1s, background 0.1s;
   }
-  #settingsBackBtn:hover { background: #2a1a0a; color: #ffe066; }
+  #settingsBackBtn:hover { background: #6e3a1a; }
+  #settingsBackBtn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,232,180,0.2), 0 2px 0 #2a1408; }
 
   /* ===== KEYBIND SECTION inside Settings ===== */
   #keybindSection {
     margin-top: 8px;
     padding-top: 14px;
-    border-top: 2px solid #5a3a20;
+    border-top: 1px solid rgba(110, 58, 26, 0.4);
     display: flex; flex-direction: column; gap: 8px;
   }
   #keybindHeader {
     font-size: 16px; letter-spacing: 4px; font-weight: bold;
-    color: #ffcc33;
-    text-shadow: 2px 2px 0 #1a0a02;
+    color: #5a2a08;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.5);
     text-align: center;
     margin-bottom: 4px;
   }
@@ -1390,42 +1708,48 @@
     max-height: 38vh;
     overflow-y: auto;
     padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #8a5a30 transparent;
   }
   .keybindRow {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 13px; letter-spacing: 1.4px;
-    color: #ddd6c4;
-    padding: 4px 0;
+    font-size: 13px; letter-spacing: 1.2px;
+    color: #2a1408; font-variant: small-caps;
+    padding: 6px 12px;
+    background: url('MagicalUI/Paper2.png') 0 0 / 100% 100% no-repeat, rgba(232, 208, 156, 0.55);
+    border: 1px solid #3a2410;
+    image-rendering: pixelated;
   }
+  .keybindRow > span:first-child { font-weight: bold; }
   .bindBtn {
-    background: #1a0a02;
-    color: #ffe066;
-    border: 2px solid #5a3a20;
+    background: #5a2a08;
+    color: #f3dca8;
+    border: 2px solid #2a1408;
     border-radius: 3px;
     padding: 5px 14px;
     min-width: 110px;
-    font-family: "Courier New", monospace;
+    font-family: 'Georgia', serif;
     font-size: 12px;
     font-weight: bold;
     letter-spacing: 2px;
+    font-variant: small-caps;
     cursor: pointer;
-    text-transform: uppercase;
     transition: all 0.14s ease;
     text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,232,180,0.18);
   }
-  .bindBtn:hover { border-color: #ffcc33; color: #fff; }
+  .bindBtn:hover { background: #6e3a1a; }
   .bindBtn.listening {
-    background: #ffcc33; color: #1a0a02;
-    border-color: #ffe066;
+    background: #c8a04c; color: #2a1408;
     animation: bindListenPulse 0.6s ease-in-out infinite;
   }
   @keyframes bindListenPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 204, 51, 0.6); }
-    50%      { box-shadow: 0 0 14px 2px rgba(255, 204, 51, 0.6); }
+    0%, 100% { box-shadow: inset 0 1px 0 rgba(255,232,180,0.18), 0 0 0 0 rgba(200, 160, 76, 0.6); }
+    50%      { box-shadow: inset 0 1px 0 rgba(255,232,180,0.18), 0 0 14px 2px rgba(200, 160, 76, 0.6); }
   }
   #resetBindsBtn {
-    background: #1a0a02; color: #ffcc33;
-    border: 2px solid #5a3a20;
+    background: #5a2a08; color: #f3dca8;
+    border: 2px solid #2a1408;
     border-radius: 3px;
     padding: 8px 18px;
     margin-top: 6px;
@@ -1436,12 +1760,930 @@
   }
   #resetBindsBtn:hover { border-color: #ffcc33; color: #ffe066; background: #2a1a0a; }
 
-  /* ===== ZONE FADE ===== */
+  /* ===== ZONE FADE — parchment travel screen ===============================
+     Replaces the old pure-black wipe with a layered parchment plane: the
+     paper rolls across the screen during the swap so it reads as "open the
+     map and walk to the next region", consistent with the minimap +
+     objective + tooltip aesthetic. */
+  /* ===== ZONE FADE — scroll unroll ========================================
+     Using the MagicalUI Scroll.png sprite as the travel screen. The scroll
+     "unrolls" by scaling its Y from 0 to 1 over ~0.45s when entering, then
+     re-rolls from 1 back to 0 when leaving. The world dims behind it so the
+     scroll reads as the focal point. */
   #zoneFade {
     position: fixed; inset: 0;
-    background: #000; opacity: 0;
-    pointer-events: none; z-index: 40;
-    transition: opacity 0.32s ease-out;
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none; z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.45s ease-out, background 0.45s ease-out;
+    display: flex; align-items: center; justify-content: center;
   }
-  #zoneFade.on { opacity: 1; }
+  #zoneFade.on {
+    opacity: 1;
+    background: rgba(8, 4, 2, 0.65);
+  }
+  /* Scroll unrolls smoothly — gentle ease, no overshoot. */
+  #zoneFade::before {
+    content: '';
+    position: absolute; left: 50%; top: 50%;
+    width: min(640px, 86vw); height: min(360px, 60vh);
+    transform: translate(-50%, -50%) scaleY(0.05);
+    transform-origin: center;
+    background: url('MagicalUI/Scroll.png') center / 100% 100% no-repeat;
+    image-rendering: pixelated;
+    opacity: 0;
+    transition:
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.45s ease-out;
+    filter: drop-shadow(0 12px 24px rgba(0,0,0,0.65));
+  }
+  #zoneFade.on::before {
+    transform: translate(-50%, -50%) scaleY(1);
+    opacity: 1;
+  }
+  /* "TRAVELING" inked label fades in after the scroll has unrolled. */
+  #zoneFade::after {
+    content: 'TRAVELING';
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Georgia', serif;
+    font-size: 36px; font-weight: bold; letter-spacing: 12px;
+    color: #5a2a08;
+    font-variant: small-caps;
+    text-shadow: 0 1px 0 rgba(255,232,180,0.55);
+    opacity: 0;
+    transition: opacity 0.4s ease-in 0.45s;
+    pointer-events: none;
+  }
+  #zoneFade.on::after { opacity: 1; }
 
+/* ============================================================================
+   UI OVERHAUL — appended block. Every background image is a CSS variable;
+   JS injects the base64 values into :root at init.
+   ============================================================================ */
+
+img, .pixelated, [class^="hb"], [id^="book"], [id^="hb"],
+#hotbar, #portraitFrame, #goldStrip, #todStrip, #compassOverlay {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* ----- Style 1 #4 health bar — heart on left, red bar on right, bush sprigs.
+       Native sprites: 4Front.PNG (64×64 heart), 4back.png (96×32 wood frame),
+       4sRed.png (96×32 red fill), Bush.png (32×32 leaf cluster).
+       Layout (rendered at 4× scale):
+         heart 64px square pinned left,
+         bar wood frame 288px × 64px to its right (heart slightly overlaps),
+         red fill inset inside the chevron caps,
+         bush sprigs at the bar's left + right ends. */
+#healthBar { display: none !important; }
+/* Style 1 #4 health bar at a larger, more readable scale.
+   Wood frame: 96×32 native × 4 = 384×128 — too tall, so use ×3 = 288×96 vertical
+   only on the bar (24 → 24×4 = 96). Heart: 64×64 native × 1.25 = 80×80.
+   Total widget: 360×80 with the heart slightly overlapping the bar's left cap. */
+#healthBarV2 {
+  position: relative;
+  width: 380px; height: 80px;
+  margin-top: 8px;
+  user-select: none;
+  pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.55));
+}
+/* Wood-frame backdrop sits BELOW the red fill — the sprite's groove is
+   opaque so painting it on top covered the fill (looked like an empty bar).
+   The visible outline now comes from an inset hairline on .hbFillWrap which
+   renders ABOVE the red fill, giving us "outline visible over the HP" without
+   depending on sprite transparency. */
+#healthBarV2 .hbBackPlate {
+  position: absolute; left: 70px; right: 4px; top: 22px; height: 36px;
+  background-image: var(--img-hb-back);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  image-rendering: pixelated;
+  z-index: 1;
+  pointer-events: none;
+}
+#healthBarV2 .hbFillWrap {
+  /* Tight insets so the fill sits fully inside the wood groove with no edge
+     overhang. The dark socket background shows through where HP is missing
+     so an empty bar reads as a depleted slot, not a void. The OUTLINE itself
+     comes from the #healthBarV2::after pseudo below — that lets the outline
+     sit above the red without using box-shadow inset (which can clip corners
+     unevenly when the wrap shrinks past 100% width). */
+  position: absolute; left: 90px; right: 26px; top: 32px; height: 16px;
+  overflow: hidden;
+  background: #1a0408;
+  z-index: 3;
+}
+/* Wood-edge outline drawn directly on the bar, ON TOP of the red fill.
+   Uses simple CSS borders so the rectangle is clean — no corners poking past
+   the rim of the bar. Sits above the red fill (z 5 > fill 4) but below the
+   numeric readout (z 7) so the HP number stays readable. */
+#healthBarV2::after {
+  content: '';
+  position: absolute;
+  left: 89px; right: 25px; top: 31px; height: 18px;
+  border: 2px solid #2a0608;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 180, 140, 0.22),  /* faint top highlight */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.45),       /* lower shadow */
+    0 0 0 1px rgba(0, 0, 0, 0.55);            /* tiny outer dark halo */
+  pointer-events: none;
+  z-index: 5;
+}
+/* Ghost layer — only visible briefly when health DROPS, lerping behind the
+   live red fill. Stays under the live fill, not over it. */
+#healthBarV2 .hbGhost {
+  position: absolute; left: 0; top: 0; height: 100%;
+  width: 100%;
+  background: linear-gradient(180deg, #ffe066 0%, #ffaa44 100%);
+  transition: width 0.65s ease-out 0.18s;
+  z-index: 1;
+}
+#healthBarV2 .hbFill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  width: 100%;
+  background:
+    linear-gradient(180deg, rgba(255,210,180,0.4) 0%, rgba(255,210,180,0.1) 30%, rgba(80,10,10,0.0) 60%, rgba(40,0,0,0.35) 100%),
+    linear-gradient(180deg, #d83838 0%, #b82020 50%, #8a1010 100%);
+  border-top: 1px solid rgba(255,180,140,0.3);
+  border-bottom: 1px solid rgba(40,0,0,0.45);
+  transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+}
+/* Heart pinned to the left. Inline red-heart SVG so it always reads as red
+   regardless of the underlying sprite. Its size is driven by JS via a
+   --hp-scale custom property so the heart visibly shrinks as HP drops. */
+#healthBarV2 .hbHeartIcon {
+  position: absolute; left: 0; top: 0;
+  width: 80px; height: 80px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' shape-rendering='crispEdges'><path d='M16 28 L4 16 Q1 11 5 7 Q9 3 13 7 Q14 8 16 10 Q18 8 19 7 Q23 3 27 7 Q31 11 28 16 Z' fill='%23e22a2a' stroke='%232a0608' stroke-width='2'/><path d='M9 9 Q12 6 14 8' fill='none' stroke='%23ff8a8a' stroke-width='1.5' opacity='0.9'/></svg>");
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  transform-origin: center;
+  transform: scale(var(--hp-scale, 1));
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+  filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.55));
+  z-index: 6;
+}
+/* Below 25% HP the heart desaturates slightly toward a wounded look. */
+#healthBarV2.crit .hbHeartIcon {
+  filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.55)) drop-shadow(0 0 8px rgba(255,40,40,0.55));
+}
+/* Bush sprigs at the bar's caps. */
+#healthBarV2 .hbBushL,
+#healthBarV2 .hbBushR {
+  position: absolute;
+  width: 26px; height: 26px;
+  background-image: var(--img-hb-bush);
+  background-size: contain; background-repeat: no-repeat;
+}
+#healthBarV2 .hbBushL { left: 64px; top: 10px; }
+#healthBarV2 .hbBushR { right: -2px; top: 46px; transform: scaleX(-1); }
+/* Numeric readout overlaid on the bar so the player sees exact HP. */
+#healthBarV2 .hbReadout {
+  position: absolute; left: 86px; right: 22px; top: 27px; height: 24px;
+  text-align: center;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 14px; line-height: 24px; color: #fff;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 0 #000, -1px 0 0 #000, 0 1px 0 #000, 1px 0 0 #000, 0 0 4px rgba(0,0,0,0.7);
+  z-index: 4;
+  pointer-events: none;
+}
+#healthBarV2 .hbSep { opacity: 0.6; margin: 0 3px; }
+/* HP number readout — small, centered over the bar's red fill. Easy to read
+   at a glance without dominating the visual.  */
+#healthBarV2 .hbReadout {
+  position: absolute; left: 70px; right: 14px; top: 22px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 12px; font-weight: bold; color: #fff;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 0 #2a0a04, -1px 0 0 #2a0a04, 0 1px 0 #2a0a04, 1px 0 0 #2a0a04;
+  pointer-events: none;
+  z-index: 7;   /* above wood frame (5) so number stays readable */
+}
+#healthBarV2 .hbReadout .hbSep { opacity: 0.65; margin: 0 3px; }
+#healthBarV2.crit .hbHeartIcon { animation: heartPulse 0.55s ease-in-out infinite; }
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.5)); }
+  50%      { transform: scale(1.18); filter: drop-shadow(0 0 14px rgba(255,80,40,0.95)) drop-shadow(2px 2px 0 rgba(0,0,0,0.5)); }
+}
+#healthBarV2.damaged { animation: hbShake 0.35s ease-out; }
+@keyframes hbShake {
+  0%,100% { transform: translate(0,0); }
+  25%     { transform: translate(-3px,1px); }
+  50%     { transform: translate(3px,-1px); }
+  75%     { transform: translate(-2px,0); }
+}
+
+/* ----- Portrait, gold, time-of-day — kept defined here so any stray styles
+   match, but the elements are removed from the DOM. The `display:none` rule
+   below renders any leftover/legacy markup invisible. ----- */
+#portraitFrame, #goldStrip, #todStrip, #compassOverlay,
+#portraitBadge, #portraitImg, #goldNum, #goldNumNew, #todIcon, #todLabel,
+#levelBadge { display: none !important; }
+#portraitFrame {
+  position: relative; margin-top: 12px;
+  width: 64px; height: 64px;
+  background: rgba(20,12,6,0.7);
+  border: 3px solid #5a3a20; border-radius: 6px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.5);
+}
+#portraitFrame img { width: 100%; height: 100%; object-fit: cover; }
+#portraitBadge {
+  position: absolute; right: -8px; bottom: -8px;
+  min-width: 24px; height: 24px; padding: 0 6px;
+  background: #c8a04c; color: #1a0a02;
+  border: 2px solid #1a0a02; border-radius: 50%;
+  font-weight: bold; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  text-shadow: none;
+}
+#goldStrip {
+  position: relative; margin-top: 10px;
+  width: 160px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+}
+#goldStrip .gsFrame {
+  position: absolute; inset: 0;
+  background-image: var(--img-gold-frame);
+  background-size: 100% 100%; background-repeat: no-repeat;
+}
+#goldNumNew {
+  position: relative; z-index: 2;
+  font-size: 18px; color: #ffe066;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 1px;
+}
+#goldNumNew.bump { animation: goldBump 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes goldBump {
+  0%   { transform: scale(1); color: #ffe066; }
+  35%  { transform: scale(1.45) rotate(-3deg); color: #fff; text-shadow: 0 0 14px #ffd866, 2px 2px 0 #000; }
+  100% { transform: scale(1); color: #ffe066; }
+}
+#todStrip {
+  position: relative; margin-top: 8px;
+  width: 160px; height: 32px;
+  display: flex; align-items: center; padding-left: 36px;
+}
+#todStrip .todFrame {
+  position: absolute; inset: 0;
+  background-image: var(--img-tod-frame);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  opacity: 0.92;
+}
+#todStrip img {
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px;
+}
+#todLabel {
+  position: relative; z-index: 2;
+  font-size: 10px; letter-spacing: 2px; color: #f4d68a;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* ----- Hotbar ----- */
+/* Hotbar uses the Pixelwood toolbarbody.png (180×24 native). At ×4 zoom the
+   bar is 720×96 — too tall, so use ×3.5 (~630×84). Slots are spaced to match
+   the ×3.5 grid: 9 slots inside the wood frame's playfield area.
+   The wood frame has ~14px end caps (left/right) + ~4px top/bottom in source
+   coords. So at ×3.5 zoom: end caps ≈ 49px, top ≈ 14px, slot strip = 84-28 = ~56px tall. */
+#hotbar {
+  /* Removed by design — players asked for a cleaner bottom edge. The DOM still
+     exists so the hotbar wiring + binding flow keep working in the background;
+     visually it's gone. */
+  display: none !important;
+}
+#hotbar .hbBody {
+  position: absolute; inset: 0;
+  background-image: var(--img-pw-toolbar);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+/* Slot grid sits inside the wood frame's inner playfield — pulled in from
+   the end caps and the top/bottom rim. The chooser overlays one slot. */
+#hbSlots {
+  position: absolute; left: 38px; right: 38px; top: 12px; bottom: 12px;
+  display: grid; grid-template-columns: repeat(9, 1fr); gap: 0;
+  z-index: 2;
+  padding: 0 2px;
+}
+#hbSlots .hbSlot {
+  position: relative;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+#hbSlots .hbSlot:hover { filter: brightness(1.18); transform: translateY(-1px); }
+#hbSlots .hbSlot:hover::after {
+  content: '';
+  position: absolute; inset: 6px;
+  border: 1px solid rgba(255,220,140,0.35);
+  border-radius: 3px;
+  pointer-events: none;
+}
+#hbSlots .hbSlot .hbSlotIcon {
+  position: absolute; inset: 4px;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  image-rendering: pixelated;
+  z-index: 2;
+  filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.45));
+}
+#hbSlots .hbSlot .hbSlotNum {
+  position: absolute; left: 4px; top: 1px;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 10px; color: #fff;
+  font-weight: bold;
+  text-shadow: 1px 1px 0 #2a1408, -1px 0 0 #2a1408, 0 1px 0 #2a1408, 1px 0 0 #2a1408;
+  pointer-events: none;
+  z-index: 4;
+}
+#hbSlots .hbSlot .hbSlotCount {
+  position: absolute; right: 3px; bottom: 1px;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 11px; color: #fff;
+  font-weight: bold;
+  text-shadow: 1px 1px 0 #000, -1px 0 0 #000, 0 1px 0 #000, 1px 0 0 #000;
+  pointer-events: none;
+  z-index: 4;
+}
+/* The standalone floating chooser is hidden — the selected slot's ::before
+   pseudo-element already shows the Pixelwood Chooser sprite. */
+#hbChooser { display: none; }
+#hbSlots .hbSlot.selected::before {
+  content: '';
+  position: absolute; inset: -2px -2px -10px -2px;
+  background-image: var(--img-pw-chooser);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  image-rendering: pixelated;
+  z-index: 1;
+  pointer-events: none;
+  animation: chooserGlow 1.6s ease-in-out infinite;
+}
+@keyframes chooserGlow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(255,220,140,0.45)); }
+  50%      { filter: drop-shadow(0 0 12px rgba(255,220,140,0.85)); }
+}
+#hbSlots .hbSlot:active { transform: translateY(0) scale(0.96); transition: transform 0.06s ease; }
+
+/* ----- Book overlay (Pixelwood Valley UI) -----
+   Open animation: 4 frames (Open/Book4 closed → Book1 open) reverse-played by JS.
+   Page flip animation: 7 frames (Book1..Book7) played on tab switch.
+   The book sprite is 219×143 px native — we render it at 8× (1752×1144 too big),
+   so use 4× = 876×572 to keep crisp pixels at 1080p. Pages are placed inside
+   the open spread, NOT the bottom thickness band. */
+#bookOverlay {
+  position: fixed; inset: 0;
+  background: rgba(8,6,4,0);
+  backdrop-filter: blur(0px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9985;
+  opacity: 0;
+  transition: opacity 0.22s ease, background 0.32s ease, backdrop-filter 0.32s ease;
+  pointer-events: none;
+}
+#bookOverlay.show {
+  background: rgba(8,6,4,0.72);
+  backdrop-filter: blur(2px);
+}
+#bookOverlay.hidden { display: none; }
+#bookOverlay.show { opacity: 1; pointer-events: auto; }
+#bookFrame {
+  position: relative;
+  /* 219×143 native × 4 = 876×572 */
+  width: 876px; height: 572px;
+  transform: scale(0.55) rotate(-4deg);
+  transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#bookOverlay.show #bookFrame { transform: scale(1) rotate(0); }
+#bookSprite {
+  position: absolute; inset: 0;
+  background-image: var(--img-pw-flip1);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+/* Inset the page content away from the wood frame and the bottom thickness
+   band. The 219×143 sprite has these usable margins (in source px):
+     left edge:  ~14 px wood spine + page rim
+     right edge: ~14 px
+     top:        ~10 px
+     bottom:     ~22 px (page rim ~6 + thickness band ~16)
+   Spine center is at x≈109 px. As percentages of 219×143:
+     left=6.4%, right=6.4%, top=7%, bottom=15.4%, gap≈3% across spine. */
+#bookPages {
+  position: absolute;
+  left: 7%; right: 7%; top: 8%; bottom: 17%;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+  opacity: 0;
+  transition: opacity 0.28s ease 0.45s;
+  z-index: 2;
+}
+#bookOverlay.show.pagesReady #bookPages { opacity: 1; }
+.bookPage {
+  position: relative;
+  padding: 22px 26px 18px 26px;
+  /* "Georgia" matches the parchment-book-feel of the Pixelwood UI better than
+     a sans-serif and is universally available. */
+  font-family: 'Georgia', 'Cambria', 'Times New Roman', serif;
+  font-size: 14px; color: #3a2412;
+  line-height: 1.55;
+  text-shadow: none;
+  letter-spacing: 0.2px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #8a5a30 transparent;
+}
+.bookPage::-webkit-scrollbar { width: 6px; }
+.bookPage::-webkit-scrollbar-thumb { background: #8a5a30; border-radius: 3px; }
+.bookPage h2 {
+  margin: 0 0 12px 0;
+  font-size: 18px; letter-spacing: 2px; color: #6e3a1a;
+  text-align: center;
+  border-bottom: 1px solid #b08a5a;
+  padding-bottom: 8px;
+  font-weight: bold;
+  font-variant: small-caps;
+}
+.bookPage p, .bookPage .qBody { line-height: 1.55; margin: 4px 0 10px 0; }
+.bookPage b { color: #5a2a08; }
+.bookPage div { margin-bottom: 4px; }
+/* Page-flip transition. The .flipping class hides BOTH pages completely for
+   the full duration of the sprite-flip animation — no opacity ghost, no
+   half-rendered swap. visibility:hidden guarantees no children paint even on
+   browsers that composite opacity:0 layers in surprising ways. After the
+   animation finishes, JS swaps the new content in while the page is still
+   hidden, then drops .flipping so the page fades up clean. */
+#bookOverlay #bookPages { transition: opacity 0.18s ease; }
+#bookOverlay.flipping #bookPages {
+  opacity: 0 !important;
+  visibility: hidden;
+  transition: none !important;
+}
+
+/* Bookmark tabs: Pixelwood `Bookmarks/1.png` (22×20) sits over `back.png` (76×3)
+   strip. The tab pokes out the right edge of the right page. */
+#bookTabs {
+  position: absolute;
+  right: -28px; top: 80px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 3;
+}
+.bookTab {
+  width: 66px; height: 60px;
+  background: transparent;
+  background-image: var(--img-pw-bookmark);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  image-rendering: pixelated;
+  border: 0; cursor: pointer;
+  color: #f4d68a;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 11px; letter-spacing: 1px;
+  font-weight: bold;
+  text-align: center; padding-top: 12px;
+  text-shadow: 1px 1px 0 #2a1408;
+  transform: translateX(-8px);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease;
+  filter: brightness(0.78);
+}
+.bookTab:hover  { transform: translateX(0px); filter: brightness(0.95); }
+.bookTab:active { transform: translateX(2px) scale(0.97); }
+.bookTab.active { transform: translateX(10px); filter: brightness(1.1); }
+.bookTab.active::after {
+  /* Subtle gold glow ring on the active bookmark. */
+  content: '';
+  position: absolute; inset: 4px;
+  pointer-events: none;
+  box-shadow: 0 0 10px rgba(255,210,140,0.55);
+}
+#bookClose {
+  position: absolute; right: -30px; top: 12px;
+  width: 30px; height: 30px;
+  background: #6b3a1a; color: #f4d68a;
+  border: 2px solid #2a1408;
+  border-radius: 50%; cursor: pointer;
+  font-family: 'Georgia', serif;
+  font-size: 22px; line-height: 24px;
+  letter-spacing: 0;
+  font-weight: bold;
+  padding: 0; text-align: center;
+  z-index: 4;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+#bookClose:hover { background: #c8a04c; color: #1a0a02; transform: scale(1.1); }
+
+/* ----- Inventory page -----
+   Pixelwood Icon Container 8 (22×22) is a clean diamond cell. Grid is 4×6
+   to fit 24 slots inside the page area without overflow. */
+.invGrid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.invCell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background-image: var(--img-pw-cell);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  cursor: pointer;
+  image-rendering: pixelated;
+  transition: filter 0.15s ease, transform 0.15s ease;
+  /* Center icon child via flex so its visual centre aligns with the cell's
+     visible socket regardless of the bg sprite's internal padding. The
+     absolute children (.invCount, .equipped::after) still position themselves
+     against the cell box. */
+  display: flex; align-items: center; justify-content: center;
+}
+.invCell:hover { filter: brightness(1.2); transform: scale(1.06); z-index: 5; }
+.invCell:active { transform: scale(0.96); transition: transform 0.06s ease; }
+.invCell.equipped::after {
+  content: 'E';
+  position: absolute; left: 3px; top: 3px;
+  font-family: 'Georgia', serif;
+  font-size: 10px; font-weight: bold; color: #f3dca8;
+  line-height: 1;
+  padding: 2px 5px;
+  background: #6e3a1a;
+  border: 1px solid #2a1408;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.invCell .invIcon {
+  position: relative;
+  width: 56%; height: 56%;
+  background-size: contain; background-repeat: no-repeat; background-position: center center;
+  image-rendering: pixelated;
+}
+.invCell .invCount {
+  position: absolute; right: 3px; bottom: 3px;
+  font-family: 'Georgia', serif;
+  font-size: 11px; color: #f3dca8;
+  font-weight: bold;
+  line-height: 1;
+  padding: 2px 5px;
+  background: #2a1408;
+  border: 1px solid #5a3a18;
+  border-radius: 3px;
+  min-width: 14px; text-align: center;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}
+.invCell.equipped {
+  background-image: var(--img-pw-cell-gold);
+}
+
+/* Hide the pre-overhaul header art blocks — the page <h2> headings already
+   read clearly and the embedded artwork pushes content past the page edges. */
+.invHeaderArt, .eqHeaderArt, .qstHeaderArt, .calHeaderArt { display: none; }
+
+/* ----- Quest journal entries ----------------------------------------------
+   Manuscript style. Entries sit directly on the parchment — no card chrome,
+   no coloured rails, no medallions. A small ink glyph in the left gutter
+   tells you the state at a glance; the title's weight + color does the rest.
+   Group headers are small-caps with a thin rule, mirroring the .h2 style
+   above so the page reads as one continuous book, not a UI dashboard. */
+.qstTimeline {
+  display: flex; flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+.qstCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  padding: 8px 0 10px 0;
+  border-bottom: 1px dotted rgba(110, 58, 26, 0.22);
+}
+.qstCard:last-child { border-bottom: none; }
+/* Status-driven glyph in the gutter. Content set on the parent so the JS
+   doesn't have to inject it. ::before keeps the markup simple. */
+.qstNum {
+  display: flex; align-items: flex-start; justify-content: center;
+  font-family: 'Georgia', serif;
+  font-size: 16px; line-height: 1.1;
+  width: 22px; padding-top: 1px;
+  color: #6e3a1a;
+}
+/* Override JS-rendered number text with a glyph per status. Falling back to
+   text-content lets older renderers still show *something*. */
+.qstCard-done   .qstNum { color: #4a6a3a; font-size: 15px; }
+.qstCard-done   .qstNum::before  { content: '✓'; }
+.qstCard-active .qstNum { color: #b88a2a; font-size: 12px; padding-top: 4px; }
+.qstCard-active .qstNum::before  { content: '◆'; }
+.qstCard-available .qstNum { color: #6e3a1a; font-size: 12px; padding-top: 4px; }
+.qstCard-available .qstNum::before { content: '◇'; }
+.qstCard-locked .qstNum { color: #8a6a48; font-size: 13px; }
+.qstCard-locked .qstNum::before  { content: '✕'; }
+.qstCard .qstNum > * { display: none; }   /* hide JS-injected number */
+.qstMain { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.qstHead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px;
+}
+.qstTitle {
+  font-family: 'Georgia', serif;
+  font-weight: bold; font-size: 15px;
+  color: #2a1408; letter-spacing: 0.5px; line-height: 1.2;
+  font-variant: small-caps;
+  flex: 1; min-width: 0;
+}
+.qstCard-done   .qstTitle { color: #5a4a38; font-weight: normal; text-decoration: line-through; text-decoration-color: rgba(110, 58, 26, 0.5); }
+.qstCard-active .qstTitle { color: #6e3a1a; }
+.qstCard-locked .qstTitle { color: #7a6a58; font-weight: normal; }
+/* The badge is now a tiny italic dateline rather than a coloured pill, so
+   the "active" cue isn't a glaring chip floating off the parchment. */
+.qstBadge {
+  display: none;
+}
+.qstCard-active .qstBadge,
+.qstCard-available .qstBadge {
+  display: inline-block;
+  font-family: 'Georgia', serif;
+  font-size: 10px; font-style: italic; font-weight: normal;
+  letter-spacing: 1.5px;
+  background: none; border: none; padding: 0;
+  color: #8a5a18;
+  text-transform: lowercase;
+  white-space: nowrap; flex-shrink: 0;
+}
+.qstCard-available .qstBadge { color: #5a4a30; }
+.qstBody {
+  font-size: 13px; line-height: 1.5;
+  color: #3a2412;
+}
+.qstCard-done   .qstBody,
+.qstCard-locked .qstBody { color: #6a5a48; opacity: 0.8; }
+.qstBody i { color: #6e3a1a; font-style: normal; font-weight: bold; margin-right: 4px; }
+/* "Next step" hint — quill-mark prefix, italic, soft amber so it reads as a
+   margin annotation rather than a UI button. */
+.qstNext {
+  margin-top: 4px;
+  font-style: italic; font-size: 12.5px;
+  color: #8a5a18;
+  letter-spacing: 0.2px;
+}
+.qstCard-available .qstNext { color: #6e4a2a; }
+/* Group headers between status sections. Small caps, hairline rule. */
+.qstGroup {
+  margin: 14px 0 6px 0;
+  font-family: 'Georgia', serif;
+  font-size: 11px; font-weight: bold; letter-spacing: 3px;
+  color: #6e3a1a; opacity: 0.85;
+  font-variant: small-caps;
+  border-bottom: 1px solid rgba(110, 58, 26, 0.3);
+  padding-bottom: 4px;
+}
+.qstGroup:first-child { margin-top: 4px; }
+.qstGroup-done   { opacity: 0.5; }
+.qstGroup-locked { opacity: 0.45; }
+
+/* ----- Equipment paper-doll —
+   3-column 3-row grid that fits inside the LEFT page only. Centered head row,
+   middle gear row, two ring slots flanking. */
+.eqDoll {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: repeat(3, 70px);
+  gap: 10px;
+  margin: 0 auto;
+  max-width: 280px;
+}
+.eqSlot {
+  position: relative;
+  background-image: var(--img-pw-cell);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  image-rendering: pixelated;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.eqSlot:hover { filter: brightness(1.15); }
+.eqSlot[data-slot="head"]   { grid-area: 1 / 2 / 2 / 3; }
+.eqSlot[data-slot="weapon"] { grid-area: 2 / 1 / 3 / 2; }
+.eqSlot[data-slot="armor"]  { grid-area: 2 / 2 / 3 / 3; }
+.eqSlot[data-slot="charm"]  { grid-area: 2 / 3 / 3 / 4; }
+.eqSlot[data-slot="ring1"]  { grid-area: 3 / 1 / 4 / 2; }
+.eqSlot[data-slot="ring2"]  { grid-area: 3 / 3 / 4 / 4; }
+.eqSlot:hover { filter: brightness(1.18); transform: scale(1.05); }
+.eqSlot .eqLabel {
+  position: absolute; bottom: -13px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 9px; letter-spacing: 1px; color: #6e3a1a;
+  font-weight: bold;
+  text-shadow: 0 1px 0 rgba(255,235,200,0.5);
+}
+.eqSlot .eqIcon {
+  width: 56%; height: 56%;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  image-rendering: pixelated;
+}
+.eqStats {
+  margin-top: 8px;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 13px; line-height: 1.7; color: #3a2412;
+  border-top: 1px solid #b08a5a; padding-top: 8px;
+}
+.eqStats b { color: #5a2a08; }
+.eqStats div { margin-bottom: 3px; }
+
+/* ----- Calendar ----- */
+.calBlock {
+  margin-top: 8px; display: flex; flex-direction: column; gap: 8px;
+  align-items: center;
+}
+.calBigDay {
+  font-size: 36px; color: #6e3a1a; letter-spacing: 4px;
+  text-shadow: 1px 1px 0 #d8b67a;
+  animation: calPulse 3s ease-in-out infinite;
+}
+@keyframes calPulse {
+  0%,100% { text-shadow: 1px 1px 0 #d8b67a; }
+  50%     { text-shadow: 1px 1px 0 #d8b67a, 0 0 18px rgba(255,210,140,0.55); }
+}
+.calIcon {
+  width: 96px; height: 96px;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  image-rendering: pixelated;
+}
+.calLabel {
+  font-family: 'Trebuchet MS', sans-serif;
+  font-size: 15px; color: #3a2412; letter-spacing: 2px; font-weight: bold;
+}
+
+/* ----- Hide hotbar / objective panel while the book modal is open or title
+   screen is visible. body[data-mode="title"] is set by JS in mainMenuStart()
+   and returnToMainMenu(); body[data-book-open="1"] is toggled by openBook /
+   closeBook so the world UI doesn't peek through the modal. ----- */
+body[data-mode="title"] #hotbar,
+body[data-mode="title"] #healthBarV2,
+body[data-mode="title"] #xpBar,
+body[data-mode="title"] #abilityBar,
+body[data-mode="title"] #objectivePanel,
+body[data-mode="title"] #minimap { display: none !important; }
+body[data-book-open="1"] #hotbar,
+body[data-book-open="1"] #abilityBar,
+body[data-book-open="1"] #objectivePanel,
+body[data-book-open="1"] #minimap,
+body[data-book-open="1"] #hud,
+body[data-book-open="1"] #autosaveToast,
+body[data-book-open="1"] #waveTag,
+body[data-book-open="1"] #streakBadge,
+body[data-book-open="1"] #interactPrompt,
+body[data-book-open="1"] #comboGauge,
+body[data-book-open="1"] #upgradeLancer,
+body[data-book-open="1"] .companionUpgradeBtn { opacity: 0; pointer-events: none; transition: opacity 0.18s ease; }
+
+/* While the scroll travel screen OR the fast-travel map is up, hide every
+   HUD widget so the modal sits on a clean dimmed world. Uses CSS :has()
+   (Chrome 105+, Safari 15.4+, Firefox 121+) — degrades gracefully on older
+   browsers (HUD just stays visible behind, which is the previous behaviour). */
+body:has(#zoneFade.on) #hud,
+body:has(#zoneFade.on) #hotbar,
+body:has(#zoneFade.on) #healthBarV2,
+body:has(#zoneFade.on) #xpBar,
+body:has(#zoneFade.on) #abilityBar,
+body:has(#zoneFade.on) #objectivePanel,
+body:has(#zoneFade.on) #minimap,
+body:has(#zoneFade.on) #waveTag,
+body:has(#zoneFade.on) #streakBadge,
+body:has(#zoneFade.on) #autosaveToast,
+body:has(#zoneFade.on) #interactPrompt,
+body:has(#zoneFade.on) #comboGauge,
+body:has(#zoneFade.on) #compassOverlay,
+body:has(#zoneFade.on) #bossBar,
+body:has(#fastTravelMap:not(.hidden)) #hud,
+body:has(#fastTravelMap:not(.hidden)) #hotbar,
+body:has(#fastTravelMap:not(.hidden)) #healthBarV2,
+body:has(#fastTravelMap:not(.hidden)) #xpBar,
+body:has(#fastTravelMap:not(.hidden)) #abilityBar,
+body:has(#fastTravelMap:not(.hidden)) #objectivePanel,
+body:has(#fastTravelMap:not(.hidden)) #minimap,
+body:has(#fastTravelMap:not(.hidden)) #waveTag,
+body:has(#fastTravelMap:not(.hidden)) #streakBadge,
+body:has(#fastTravelMap:not(.hidden)) #autosaveToast,
+body:has(#fastTravelMap:not(.hidden)) #interactPrompt,
+body:has(#fastTravelMap:not(.hidden)) #comboGauge,
+body:has(#fastTravelMap:not(.hidden)) #compassOverlay,
+body:has(#fastTravelMap:not(.hidden)) #bossBar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.18s ease;
+}
+
+/* === LEGACY HUD WIDGETS HIDDEN FOR A CLEANER LOOK ========================
+   These elements duplicated info the player already gets from the minimap +
+   objective panel + HP bar, or were noise during gameplay (toasts mid-fight).
+   Keep them in the DOM so existing JS handles don't error, just remove them
+   from the page visually. */
+#compassOverlay { display: none !important; }
+#autosaveToast { display: none !important; }                     /* save toast spam */
+#dmgDirN, #dmgDirS, #dmgDirE, #dmgDirW { display: none !important; }   /* side red flashes */
+#objectivePanel .objStack { display: none !important; }          /* sub-quest mini-list */
+#objectivePanel .objBadges { display: none !important; }         /* sticky chip row */
+#objectivePanel .objRewardFlash { display: none !important; }    /* reward pop pill */
+#streakBadge { display: none !important; }                       /* multi-kill float text */
+/* Combo gauge only fades in once the player is actively comboing — empty
+   state hides instead of sitting at the top of the screen. */
+#comboGauge:not(.active):not(.punch):not(.max) { opacity: 0 !important; pointer-events: none; }
+#compassOverlay.legacy {
+  position: fixed; top: 16px; right: 296px;
+  width: 64px; height: 64px;
+  z-index: 14; pointer-events: none;
+}
+#compassOverlay img {
+  width: 100%; height: 100%;
+  filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.6));
+  animation: compassBob 6s ease-in-out infinite;
+}
+@keyframes compassBob {
+  0%,100% { transform: rotate(0deg) translateY(0); }
+  50%     { transform: rotate(2deg) translateY(-2px); }
+}
+
+/* Item pickup toast removed — items are fully disabled. Force-hidden so
+   even a stale code path can't surface the "+ item" plate. */
+#itemPickupToast { display: none !important; }
+#itemPickupToast.legacy {
+  position: fixed; left: 50%; top: 22%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 10px 22px;
+  background:
+    repeating-linear-gradient(115deg, rgba(110, 70, 32, 0.08) 0 1px, transparent 1px 4px),
+    url('MagicalUI/Paper.png') 0 0 / 100% 100% no-repeat, #c9a062;
+  border: 2px solid #3a2410;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px #2a1408,
+    0 8px 18px rgba(0,0,0,0.5),
+    inset 0 0 0 2px rgba(210, 180, 130, 0.32);
+  font-family: 'Georgia', serif; font-size: 13px;
+  color: #2a1408; letter-spacing: 1px; font-weight: bold;
+  font-variant: small-caps;
+  opacity: 0; pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  min-width: 260px; text-align: center;
+}
+#itemPickupToast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+  animation: toastWiggle 0.55s ease-out;
+}
+@keyframes toastWiggle {
+  0%   { transform: translateX(-50%) translateY(20px) rotate(-3deg); }
+  60%  { transform: translateX(-50%) translateY(-4px) rotate(2deg); }
+  100% { transform: translateX(-50%) translateY(0) rotate(0); }
+}
+
+/* ----- Tooltip ----- */
+/* Speech-bubble style: pops ABOVE the hovered cell with a tail at the BOTTOM
+   LEFT of the bubble pointing down at the item. JS anchors the tail (not the
+   bubble centre) so the tail's tip lands directly on the cell — that's the
+   conventional speech-bubble convention. Padding is generous on every side so
+   the title text never bleeds into the parchment's curved corners or the
+   paperclip decoration on the right edge. */
+#tooltipPopover {
+  position: fixed; z-index: 10000;
+  padding: 18px 32px 18px 26px;
+  background-image: var(--img-dlg-paper2);
+  background-size: 100% 100%; background-repeat: no-repeat;
+  color: #3a2412; font-family: 'Georgia', serif;
+  font-size: 13px; line-height: 1.5;
+  width: 290px; max-width: 92vw; pointer-events: none;
+  word-wrap: break-word; overflow-wrap: anywhere;
+  text-align: left;
+  transform: translate(0, -100%);   /* JS anchors bottom-LEFT to the tail tip */
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.45));
+}
+/* Tooltip's custom CSS-drawn arrow tail removed — the parchment background
+   speaks for itself, and the user wanted the bubble clean. The bubble is
+   still positioned ABOVE the hovered cell via JS so the relationship to the
+   item is clear by proximity. */
+#tooltipPopover.hidden { display: none; }
+#tooltipPopover .tipName  {
+  font-family: 'Georgia', serif;
+  font-weight: bold; color: #5a2a08; font-size: 16px;
+  letter-spacing: 0.5px;
+  font-variant: small-caps;
+  margin: 0 0 6px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(110, 58, 26, 0.35);
+}
+#tooltipPopover .tipFlavor {
+  font-family: 'Georgia', serif;
+  color: #6a4a30; font-style: italic;
+  margin: 0 0 6px 0; font-size: 12.5px;
+}
+#tooltipPopover .tipStat {
+  font-family: 'Georgia', serif;
+  margin: 2px 0 0 0; font-size: 12.5px; color: #3a2412;
+}
+#tooltipPopover .tipStat b { color: #1a4a1a; font-weight: bold; }
+
+/* Legacy dialog-skin override removed — was layering an old img-dlg-box on
+   top of the new parchment frame and creating the dark middle bar / no-
+   border seam visible in screenshots. The base #dialogFrame styling now
+   applies cleanly even when JS toggles .useNewSkin. */
+#dialogBox.useNewSkin #dialogFrame { /* inherit base */ }

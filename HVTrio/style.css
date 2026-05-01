@@ -1,0 +1,175 @@
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: #05060a;
+  color: #e7e2c8;
+  font-family: 'Trebuchet MS', system-ui, sans-serif;
+  overflow: hidden;
+}
+#stage {
+  position: absolute; inset: 0;
+}
+.render-canvas {
+  position: absolute; inset: 0;
+  /* width/height set inline by renderer to match window CSS pixels (no stretch) */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}
+
+/* Top mode selector */
+#modes {
+  position: fixed; top: 14px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex; gap: 6px;
+  background: rgba(15, 14, 10, 0.78);
+  border: 2px solid #3a3325;
+  padding: 4px;
+}
+#modes button {
+  background: transparent;
+  color: #9a9182;
+  border: 0;
+  padding: 8px 22px;
+  font-size: 12px; letter-spacing: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+#modes button:hover { color: #d4b56a; }
+#modes button.on {
+  background: #d4b56a;
+  color: #15161d;
+}
+
+#hud {
+  position: fixed; top: 18px; right: 18px;
+  z-index: 5;
+  font-size: 11px; letter-spacing: 2px;
+  color: #5a5446;
+  pointer-events: none;
+}
+
+/* Title + pause overlays */
+#title, #pause {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 35%, rgba(20, 18, 12, 0.55), rgba(2, 3, 5, 0.96) 75%);
+  transition: opacity 0.5s ease-out;
+}
+#title.hidden, #pause.hidden { opacity: 0; pointer-events: none; }
+
+.frame {
+  text-align: center;
+  padding: 48px 80px;
+  border: 2px solid #3a3325;
+  background: rgba(15, 14, 10, 0.78);
+  box-shadow: 0 0 64px rgba(212, 181, 106, 0.08), inset 0 0 32px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+.frame::before, .frame::after {
+  content: ''; position: absolute;
+  width: 14px; height: 14px;
+  border: 2px solid #d4b56a;
+}
+.frame::before { top: -2px; left: -2px;  border-right: 0; border-bottom: 0; }
+.frame::after  { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
+
+#title h1 {
+  font-size: 64px; letter-spacing: 8px;
+  margin: 0 0 8px;
+  color: #d4b56a;
+  text-shadow: 0 3px 0 #000, 0 0 36px rgba(212, 181, 106, 0.35);
+  animation: pulse 4.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { text-shadow: 0 3px 0 #000, 0 0 36px rgba(212, 181, 106, 0.25); }
+  50%      { text-shadow: 0 3px 0 #000, 0 0 56px rgba(212, 181, 106, 0.55); }
+}
+
+.sub {
+  font-size: 13px; letter-spacing: 6px;
+  color: #9a9182; margin: 0 0 40px;
+  text-transform: uppercase;
+}
+
+#title button, #pause button {
+  background: transparent;
+  color: #d4b56a;
+  border: 2px solid #d4b56a;
+  padding: 14px 56px;
+  font-size: 16px; letter-spacing: 5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, transform 0.18s;
+}
+#title button:hover:not(:disabled), #pause button:hover {
+  background: #d4b56a; color: #15161d;
+  transform: translateY(-1px);
+}
+#title button:disabled {
+  opacity: 0.35; cursor: wait;
+  border-color: #5a5446; color: #5a5446;
+}
+
+.hint {
+  margin: 32px 0 0;
+  font-size: 11px; letter-spacing: 2px;
+  color: #5a5446;
+}
+
+#pause h2 {
+  font-size: 36px; letter-spacing: 10px;
+  margin: 0 0 32px;
+  color: #d4b56a;
+}
+
+/* ===== ZONE FADE — scroll unroll =========================================
+   Lifted from the legacy game's #zoneFade. The MagicalUI Scroll.png unrolls
+   vertically (scaleY 0.05 → 1) over 0.6s, the world dims behind it, and the
+   "TRAVELING" inked label fades in after the scroll is open. */
+#zoneFade {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0);
+  pointer-events: none; z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.45s ease-out, background 0.45s ease-out;
+  display: flex; align-items: center; justify-content: center;
+}
+#zoneFade.on {
+  opacity: 1;
+  /* Background fully fades to BLACK during the transition (world hidden). */
+  background: rgba(0, 0, 0, 1);
+}
+#zoneFade::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  width: min(640px, 86vw); height: min(360px, 60vh);
+  transform: translate(-50%, -50%) scaleY(0.05);
+  transform-origin: center;
+  background: url('assets/Scroll.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  opacity: 0;
+  transition:
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s ease-out;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.65));
+}
+#zoneFade.on::before {
+  transform: translate(-50%, -50%) scaleY(1);
+  opacity: 1;
+}
+#zoneFade::after {
+  content: 'TRAVELING';
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Georgia', serif;
+  font-size: 36px; font-weight: bold; letter-spacing: 12px;
+  color: #5a2a08;
+  font-variant: small-caps;
+  text-shadow: 0 1px 0 rgba(255, 232, 180, 0.55);
+  opacity: 0;
+  transition: opacity 0.4s ease-in 0.45s;
+  pointer-events: none;
+}
+#zoneFade.on::after { opacity: 1; }

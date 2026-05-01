@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hollow Vigil</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="title">
+  <div class="frame">
+    <h1>HOLLOW VIGIL</h1>
+    <p class="sub">Hollow Crossing</p>
+    <button id="play" disabled>NEW GAME</button>
+    <p class="hint">WASD or arrow keys to move · Esc to pause</p>
+  </div>
+</div>
+
+<div id="pause" class="hidden">
+  <div class="frame">
+    <h2>PAUSED</h2>
+    <button id="resume">RESUME</button>
+  </div>
+</div>
+
+<div id="hud">
+  <span id="fps"></span>
+</div>
+
+<script src="data.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module" src="game.js"></script>
+</body>
+</html>

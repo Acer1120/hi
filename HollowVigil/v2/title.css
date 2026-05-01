@@ -1,0 +1,79 @@
+html, body {
+  margin: 0; padding: 0;
+  background: #05060a;
+  color: #e7e2c8;
+  font-family: 'Trebuchet MS', system-ui, sans-serif;
+  overflow: hidden;
+  height: 100%;
+}
+canvas {
+  display: block;
+  position: absolute; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+#title {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(5, 6, 10, 0.92);
+  z-index: 10;
+  transition: opacity 0.45s ease-out;
+}
+#title.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#title h1 {
+  font-size: 64px;
+  letter-spacing: 8px;
+  margin: 0 0 12px;
+  color: #d4b56a;
+  text-shadow: 0 3px 0 #000, 0 0 30px rgba(212, 181, 106, 0.3);
+}
+#title #subtitle {
+  font-size: 14px;
+  letter-spacing: 4px;
+  color: #9a9182;
+  margin: 0 0 56px;
+  text-transform: uppercase;
+}
+#title #play {
+  background: #15161d;
+  color: #d4b56a;
+  border: 2px solid #d4b56a;
+  padding: 14px 48px;
+  font-size: 18px;
+  letter-spacing: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+#title #play:hover:not(:disabled) {
+  background: #d4b56a;
+  color: #15161d;
+}
+#title #play:disabled {
+  opacity: 0.4;
+  cursor: wait;
+  border-color: #5a5446;
+  color: #5a5446;
+}
+#title #variant-tag {
+  position: fixed;
+  top: 14px; right: 18px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #5a5446;
+}
+#back-link {
+  position: fixed;
+  top: 14px; left: 18px;
+  z-index: 11;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #5a5446;
+  text-decoration: none;
+}
+#back-link:hover { color: #d4b56a; }

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hollow Vigil v2 — Renderer Comparison</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #0b0b10;
+    color: #e7e2c8;
+    font-family: 'Trebuchet MS', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  h1 {
+    font-size: 56px;
+    letter-spacing: 6px;
+    margin: 0 0 8px;
+    color: #d4b56a;
+    text-shadow: 0 2px 0 #000;
+  }
+  p.lede { color: #9a9182; margin: 0 0 36px; font-size: 14px; letter-spacing: 1px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 280px);
+    gap: 18px;
+  }
+  a.card {
+    display: block;
+    padding: 24px;
+    background: #15161d;
+    border: 2px solid #3a3325;
+    border-radius: 4px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  a.card:hover {
+    border-color: #d4b56a;
+    transform: translateY(-2px);
+  }
+  a.card h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: #d4b56a;
+  }
+  a.card p { margin: 0; font-size: 13px; color: #9a9182; line-height: 1.5; }
+  footer { margin-top: 36px; font-size: 11px; color: #5a5446; }
+</style>
+</head>
+<body>
+  <h1>HOLLOW VIGIL</h1>
+  <p class="lede">— renderer comparison · milestone 1 —</p>
+  <div class="grid">
+    <a class="card" href="flat/index.html">
+      <h2>1. FLAT</h2>
+      <p>Pure 2D top-down canvas. Tiles painted flat, camera follows player. Simplest — no perspective, no WebGL.</p>
+    </a>
+    <a class="card" href="three/index.html">
+      <h2>2. THREE</h2>
+      <p>THREE.js with a tilted perspective camera. Recreates the look of the legacy game.</p>
+    </a>
+    <a class="card" href="tilt/index.html">
+      <h2>3. TILT</h2>
+      <p>2D canvas with a vertical squash on the ground plane. Fakes the tilted look without WebGL.</p>
+    </a>
+  </div>
+  <footer>HollowVigil/v2 — pick a variant, pick a winner.</footer>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hollow Vigil — Trio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="stage"></div>
+
+<nav id="modes">
+  <button data-mode="flat">FLAT</button>
+  <button data-mode="three" class="on">THREE</button>
+  <button data-mode="tilt">TILT</button>
+</nav>
+
+<div id="hud"><span id="fps"></span></div>
+
+<div id="title">
+  <div class="frame">
+    <h1>HOLLOW VIGIL</h1>
+    <p class="sub">Trio · pick any renderer above</p>
+    <button id="play" disabled>NEW GAME</button>
+    <p class="hint">WASD / arrows to move · Space or J to attack · Shift or K to dash · Esc to pause · FLAT / THREE / TILT to swap renderer</p>
+  </div>
+</div>
+
+<div id="pause" class="hidden">
+  <div class="frame">
+    <h2>PAUSED</h2>
+    <button id="resume">RESUME</button>
+  </div>
+</div>
+
+<!-- Zone-transition fade overlay. Identical to the legacy game's #zoneFade
+     — parchment scroll unrolls, "TRAVELING" inks in afterward. -->
+<div id="zoneFade"></div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
