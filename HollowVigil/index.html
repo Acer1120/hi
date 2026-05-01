@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Hollow Vigil</title>
+<link rel="stylesheet" href="styles.css?v=expansion4">
+</head>
+<body>
+<div id="hud" class="ui">
+  <span class="label">GOLD</span> <span id="goldNum">0</span>
+  <span id="levelBadge">LV 1</span>
+  <!-- zoneLabel pulls double duty: shows zone name in normal play, swaps to
+       "TIDE · WAVE n · BEST n" while Endless Tide is active. -->
+  <span id="zoneLabel" class="zoneLabel"></span>
+  <div id="healthBar"><div id="healthGhost"></div><div id="healthFill" style="width:100%"></div></div>
+  <div id="xpBar">
+    <div id="xpFill" style="width:0%"></div>
+    <div id="xpLabel">XP 0 / 10</div>
+  </div>
+  <div id="xpHint"><span class="xpHintTalent">▲ NEXT PERK</span>  in 10 xp</div>
+</div>
+
+<!-- Boss HP bar at top: only shown while a boss is alive. Bar fills from
+     state.quest.bossEnemy.hp / cfg.hp. -->
+<div id="bossBar">
+  <div class="bossName" id="bossName">— THE FOREST WARDEN —</div>
+  <div class="bossSub" id="bossSub">LEAK MADE FLESH</div>
+  <div id="bossBarTrack"><div id="bossBarFill"></div></div>
+</div>
+
+<!-- Damage direction vignettes: faint red glow on the side incoming damage
+     came from. flashDamageDirection(dx, dz) toggles them. -->
+<div id="dmgDirN"></div>
+<div id="dmgDirS"></div>
+<div id="dmgDirE"></div>
+<div id="dmgDirW"></div>
+
+<!-- Tiny autosave toast bottom-left. showAutosaveToast() pops it for ~1.4s. -->
+<div id="autosaveToast">SAVED</div>
+
+<!-- Minimap radar in top-right. Updated each frame from updateMinimap(). -->
+<div id="minimap">
+  <div class="mmLabel">MAP</div>
+  <canvas id="minimapCanvas" width="260" height="260"></canvas>
+  <div class="mmCompass">
+    <span class="mmN">N</span>
+    <span class="mmS">S</span>
+    <span class="mmE">E</span>
+    <span class="mmW">W</span>
+  </div>
+  <div class="mmObjective" id="mmObjective"></div>
+</div>
+
+<!-- Kill streak floating badge. Pops in mid-screen on multi-kill chains. -->
+<div id="streakBadge"></div>
+
+<!-- Talent pick modal: shown on level-up. Three random cards. -->
+<div id="talentOverlay">
+  <div id="talentFrame">
+    <div id="talentTitle">LEVEL UP</div>
+    <div id="talentSub">Choose one — your road remembers</div>
+    <div id="talentChoices"></div>
+  </div>
+</div>
+
+<!-- Quest journal overlay. Press J to open. Lists all quest stages with status. -->
+<div id="journalOverlay">
+  <div id="journalFrame">
+    <div id="journalTitle">VIGIL JOURNAL</div>
+    <div id="journalSub">— THE WARDSTONE PILGRIMAGE —</div>
+    <div id="journalEntries"></div>
+    <div id="journalClose">press J or ESC to close</div>
+  </div>
+</div>
+<div id="controls" class="ui">
+  WASD / Arrows · move<br>
+  J / LMB · swing<br>
+  SPACE · dash (i-frames)<br>
+  K (hold) · block<br>
+  E · talk / travel<br>
+  Q / R · abilities<br>
+  TAB · journal<br>
+  ESC · pause
+</div>
+<div id="waveTag" class="ui"></div>
+<div id="vignette"></div>
+<div id="damageFlash"></div>
+<div id="hitFlash"></div>
+<div id="comboGauge">
+  <div id="comboCount"></div>
+  <div id="comboTrack"><div id="comboFill"></div></div>
+</div>
+<!-- Shop overlay shown between waves. Lists upgrades + recruits. Each row has a
+     name, short flavor, cost, and a buy button. Player clicks "Begin next wave"
+     to leave rest mode and trigger startWave(). -->
+<div id="shopOverlay" class="hidden">
+  <div id="shopFrame">
+    <button id="shopCloseBtn" class="shopCloseBtn" aria-label="Close shop">✕</button>
+    <div id="shopTitle">RECRUIT &amp; UPGRADE</div>
+    <div id="shopSubtitle">Wave <span id="shopWaveNum">1</span> cleared. Spend gold or press onward.</div>
+    <div id="shopGoldDisplay">GOLD <span id="shopGoldNum">0</span></div>
+    <div id="shopItems"></div>
+    <button id="shopContinueBtn">CLOSE</button>
+  </div>
+</div>
+
+<div id="dashFx">
+  <div id="dashTopBar"></div>
+  <div id="dashBotBar"></div>
+  <div id="dashLines"></div>
+</div>
+
+<!-- Ability cooldown indicators (Q = slot1, R = slot2). Hidden when the active
+     character has no ability bound to that slot. -->
+<div id="abilityBar">
+  <div class="abilitySlot" id="abilitySlot1">
+    <div class="cdSweep"></div>
+    <div class="abilityKey">Q</div>
+    <div class="abilityIcon"></div>
+    <div class="abilityCooldown"></div>
+    <div class="abilityName"></div>
+  </div>
+  <div class="abilitySlot" id="abilitySlot2">
+    <div class="cdSweep"></div>
+    <div class="abilityKey">R</div>
+    <div class="abilityIcon"></div>
+    <div class="abilityCooldown"></div>
+    <div class="abilityName"></div>
+  </div>
+</div>
+<!-- Main menu / title screen / game-over screen. The same overlay re-skins for
+     each context — title/menu vs. game-over — by JS swapping the title text
+     and the visible button group. -->
+<div id="overlay">
+  <div id="menuPanel">
+    <h1 id="overTitle">HOLLOW VIGIL</h1>
+    <p id="overSubtitle">— Ashridge Junction —</p>
+    <p id="overText">A weary watchman. A town of survivors. A forest gone wrong.</p>
+    <div id="overMenu">
+      <button id="startBtn"    class="paBtn" data-pa="play"     data-label="PLAY"><img alt="PLAY"></button>
+      <button id="continueBtn" class="paBtn" data-pa="load"     data-label="LOAD"><img alt="LOAD"></button>
+      <button id="settingsFromMenuBtn" class="paBtn" data-pa="settings" data-label="SETTINGS"><img alt="SETTINGS"></button>
+      <button id="quitBtn"     class="paBtn" data-pa="quit"     data-label="QUIT"><img alt="QUIT"></button>
+    </div>
+    <div id="overFooter">v0.2 · the wardstone pilgrimage</div>
+  </div>
+</div>
+
+<!-- Pause overlay: opens on Esc when no other modal is up. -->
+<div id="pauseOverlay" class="hidden">
+  <div id="pauseFrame">
+    <div id="pauseTitle">PAUSED</div>
+    <button id="pauseResumeBtn">RESUME</button>
+    <button id="pauseSettingsBtn">SETTINGS</button>
+    <button id="pauseRestartBtn">RESTART RUN</button>
+    <button id="pauseMainMenuBtn">MAIN MENU</button>
+  </div>
+</div>
+
+<!-- Settings overlay: independent panel reachable from main menu and pause. -->
+<div id="settingsOverlay" class="hidden">
+  <div id="settingsFrame">
+    <div id="settingsTitle">SETTINGS</div>
+    <label class="settingRow">
+      <span>Master Volume</span>
+      <input type="range" id="setMasterVol" min="0" max="100" value="80">
+    </label>
+    <label class="settingRow">
+      <span>SFX Volume</span>
+      <input type="range" id="setSfxVol" min="0" max="100" value="80">
+    </label>
+    <label class="settingRow">
+      <span>Camera Shake</span>
+      <input type="checkbox" id="setShake" checked>
+    </label>
+    <label class="settingRow">
+      <span>Show Tutorial Hints</span>
+      <input type="checkbox" id="setHints" checked>
+    </label>
+    <!-- Keybind section: each row is "Action: [bindBtn]". Click the bindBtn,
+         then press a key to bind. The reset button restores defaults. -->
+    <div id="keybindSection">
+      <div id="keybindHeader">CONTROLS</div>
+      <div id="keybindList"></div>
+      <button id="resetBindsBtn">RESET TO DEFAULT</button>
+    </div>
+    <button id="settingsBackBtn">BACK</button>
+  </div>
+</div>
+
+<!-- Zone-transition fade overlay. Activated by enterZone() for the brief swap. -->
+<div id="zoneFade"></div>
+
+<div id="interactPrompt"><span class="key">E</span><span id="interactLabel">Talk</span></div>
+
+<!-- Objective panel: quest tracker. Shown bottom-right. updateObjectiveHUD() in JS
+     refreshes its contents whenever the quest state changes.
+     LAYOUT (top to bottom):
+       1) Header: "QUEST · STAGE n/5" + TAB hint
+       2) Title:  the verb-first action (e.g. "GO TO MAYOR ALDRIC")
+       3) Body:   one sentence of where/why
+       4) Next:   the literal next concrete step (>"talk to him")
+       5) Steps:  5 pips — done / active / locked
+       6) Progress text + bar (intra-stage refinement, like wardstone count)
+       7) Distance: live distance to current objective
+-->
+<div id="objectivePanel">
+  <div class="objHeader">QUEST<span class="objStageNum" id="objStageNum">1/5</span><span class="objJournalHint">TAB · journal</span></div>
+  <div class="objTitle" id="objTitle">—</div>
+  <div class="objBody" id="objBody"></div>
+  <div class="objNext" id="objNext"></div>
+  <div class="objSteps" id="objSteps">
+    <div class="objStep" data-step="0"></div>
+    <div class="objStep" data-step="1"></div>
+    <div class="objStep" data-step="2"></div>
+    <div class="objStep" data-step="3"></div>
+    <div class="objStep" data-step="4"></div>
+  </div>
+  <div class="objProgress" id="objProgress"></div>
+  <div class="objBar"><div class="objBarFill" id="objBarFill"></div></div>
+  <div class="objDistance" id="objDistance"></div>
+</div>
+
+<!-- Story banner: shown for big plot beats (quest start, boss appearance,
+     ending). showStoryBanner(title, body, ms) in JS pops it up. Click body
+     or the X (or press SPACE/ESC) to dismiss early. -->
+<div id="storyBanner">
+  <button id="storyBannerClose" aria-label="Close" title="Close (ESC)">×</button>
+  <div class="stTitle" id="stTitle"></div>
+  <div class="stBody" id="stBody"></div>
+  <div class="stHint">click anywhere or press SPACE / ESC to close</div>
+</div>
+
+<div id="dialogBox">
+  <div id="dialogFrame">
+    <button id="dialogCloseBtn" class="dialogCloseBtn" aria-label="Close dialog">✕</button>
+    <div id="dialogSpeaker"></div>
+    <div id="dialogText"></div>
+    <div id="dialogChoices"></div>
+    <div id="dialogContinue">press SPACE to continue</div>
+    <div id="dialogHint"></div>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js?v=expansion4"></script>
+</body>
+</html>

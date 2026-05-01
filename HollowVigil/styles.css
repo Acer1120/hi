@@ -1,0 +1,1447 @@
+/* =============================================================================
+   HOLLOW VIGIL — STYLES
+   =============================================================================
+   SECTION MAP (each banner is grep-friendly: "===== NAME ====="):
+
+     UNIFIED COLOR PALETTE         CSS variables (--gold, --red, --teal, etc.)
+     HUD                           gold / level / health / xp (top-left)
+     PA IMAGE BUTTONS              menu Play/Load/Save/Settings/Quit buttons
+     COMBO GAUGE                   top-center hit-counter, alternating tilt
+     BOSS HP BAR                   full-width strip shown only during boss
+     DAMAGE DIRECTION VIGNETTE     red side-glows when hit from a direction
+     AUTOSAVE TOAST                small lower-left "SAVED" badge
+     ABILITY COOLDOWN              radial sweep + flash on ready
+     MINIMAP                       top-right radar + objective markers
+     XP / LEVEL BAR                slim strip under the health bar
+     KILL STREAK FLOATING TEXT     mid-screen multi-kill badge
+     TALENT PICK MODAL             level-up reward picker (3 cards)
+     QUEST JOURNAL OVERLAY         press J / TAB to open
+     OBJECTIVE PANEL               quest tracker bottom-right
+     STORY BANNER                  full-screen narration card for big beats
+     INTERACT PROMPT               floating "Press E to talk" near NPCs
+     DIALOG BOX                    NPC conversation panel (bottom)
+     ABILITY BAR                   bottom-center Q + R slot icons
+     SHOP OVERLAY                  between-wave rest / buy phase
+     PAUSE OVERLAY                 Esc menu
+     MAIN MENU buttons             title-screen button styling
+     SETTINGS OVERLAY              audio / hints / keybinds panel
+     KEYBIND SECTION               in-Settings rebind list
+     ZONE FADE                     screen-wipe between zones
+   =============================================================================
+*/
+
+  /* ===== UNIFIED COLOR PALETTE ===== */
+  :root {
+    --gold:       #ffcc33;
+    --gold-light: #ffe066;
+    --amber:      #ff8844;
+    --red:        #ff4433;
+    --red-dark:   #b8221a;
+    --teal:       #66e2c8;
+    --bg-dark:    rgba(20, 12, 6, 0.55);
+    --border:     #3a2618;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  html, body { overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; }
+  canvas { display: block; }
+  .ui {
+    position: absolute; color: #fff;
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    z-index: 10; pointer-events: none; font-weight: bold;
+  }
+
+  /* ===== HUD: Gold, Wave, Health ===== */
+  #hud { top: 16px; left: 16px; font-size: 18px; line-height: 1.4; letter-spacing: 1px; }
+  #hud .label { font-size: 12px; opacity: 0.75; letter-spacing: 3px; color: var(--gold-light); }
+  #hud .zoneLabel {
+    display: block; margin-top: 4px;
+    font-size: 13px; letter-spacing: 3px;
+    color: #ffe066; opacity: 0.7;
+    text-shadow: 1px 1px 0 #1a0a02;
+  }
+  #goldNum, #waveNum {
+    display: inline-block; font-size: 28px;
+    color: var(--gold); transform-origin: center;
+  }
+  #goldNum.bump { animation: statBumpL 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  #waveNum.bump  { animation: statBumpR 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes statBumpL {
+    0%   { transform: scale(1) rotate(0); color: var(--gold); }
+    35%  { transform: scale(1.55) rotate(-5deg); color: #fff; text-shadow: 0 0 12px var(--gold-light), 2px 2px 0 #000; }
+    100% { transform: scale(1) rotate(0); color: var(--gold); }
+  }
+  @keyframes statBumpR {
+    0%   { transform: scale(1) rotate(0); color: var(--gold); }
+    35%  { transform: scale(1.6) rotate(6deg); color: #fff; text-shadow: 0 0 14px var(--gold-light), 2px 2px 0 #000; }
+    100% { transform: scale(1) rotate(0); color: var(--gold); }
+  }
+
+  #healthBar {
+    width: 320px; height: 28px;
+    background: rgba(20, 12, 6, 0.85);
+    border: 3px solid #5a3a20;
+    border-radius: 5px;
+    margin-top: 12px; overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 12px rgba(0,0,0,0.6), inset 0 0 10px rgba(0,0,0,0.85);
+  }
+  /* Yellow "ghost" layer that lingers behind the red fill after damage so the
+     player sees how much they just lost. Lerps down to match the actual fill
+     after a short pause. */
+  #healthGhost {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 100%);
+    width: 100%;
+    transition: width 0.65s ease-out 0.18s;
+    z-index: 0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+  }
+  #healthFill { position: relative; z-index: 1; }
+  /* Critical-HP pulse: when below 25% we throb the bar red so the player
+     feels the danger without us having to spam a screen-flash. */
+  #healthBar.crit { animation: hpCrit 0.6s ease-in-out infinite; }
+  @keyframes hpCrit {
+    0%,100% { box-shadow: 0 0 12px rgba(0,0,0,0.6), inset 0 0 10px rgba(0,0,0,0.85), 0 0 0 0 rgba(255,40,40,0.0); }
+    50%     { box-shadow: 0 0 18px rgba(255,80,40,0.85), inset 0 0 10px rgba(0,0,0,0.85), 0 0 0 4px rgba(255,40,40,0.35); }
+  }
+  #healthBar.damaged { animation: healthShake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+  @keyframes healthShake {
+    0%, 100% { transform: translate3d(0,0,0); }
+    20%      { transform: translate3d(-4px,0,0); }
+    40%      { transform: translate3d(4px,0,0); }
+    60%      { transform: translate3d(-3px,0,0); }
+    80%      { transform: translate3d(2px,0,0); }
+  }
+  #healthFill {
+    height: 100%;
+    background: linear-gradient(180deg, #ff7766 0%, #e02818 50%, #8a0808 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,210,180,0.45),
+      inset 0 -1px 0 rgba(40,0,0,0.6);
+    transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* UI LAYOUT GRID
+     top-left:    HUD (gold / wave / health)
+     top-center:  combo gauge (responsive width)
+     top-right:   controls hint
+     center:      wave tag (transient)
+     bottom-center: ability bar (Q / R)
+     center modal: dialog | shop | game-over | pause (mutually exclusive)
+     fullscreen FX: damage / hit flashes (pointer-events: none) */
+
+  /* Controls hint sits BELOW the minimap (which is 260×260 anchored at top:16
+     right:16, so its bottom edge is y≈276). Anchor controls 12px below that
+     so the two panels don't overlap and the controls text is fully readable. */
+  #controls {
+    top: 296px; right: 16px;
+    font-size: 11px; opacity: 0.55; line-height: 1.6; letter-spacing: 1px;
+    text-align: right;
+    transition: opacity 0.4s ease;
+    max-width: 220px;
+  }
+  #controls.faded { opacity: 0.18; }
+  /* On compact widths the controls hint becomes a small "?" pill. JS toggles the
+     `compact` class on body when window.innerWidth < 720; we use it to hide
+     the verbose text and show only a hover-tip badge instead. */
+  @media (max-width: 720px) {
+    /* Compact: minimap shrinks to 180×180 (top:12 right:12 → bottom y≈204)
+       so controls sit at top:212. */
+    #controls { top: 212px; font-size: 10px; max-width: 170px; opacity: 0.45; }
+  }
+  @media (max-width: 480px) {
+    #controls { display: none; }
+  }
+
+  #waveTag {
+    position: absolute; top: 38%; left: 50%;
+    transform: translate(-50%, -50%) scale(0) rotate(-12deg);
+    font-size: 88px; color: var(--gold);
+    text-shadow: 5px 5px 0 var(--red-dark), 8px 8px 0 #1a0a04, 0 0 24px rgba(255, 200, 80, 0.5);
+    z-index: 9; pointer-events: none; font-weight: bold; letter-spacing: 6px;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.45s;
+    opacity: 0;
+  }
+  #waveTag.show { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
+
+  #overlay {
+    position: absolute; inset: 0;
+    /* Layered backdrop: dark vignette over a procedural "wasteland sky"
+       gradient; subtle scanline pattern over the top for retro CRT feel. */
+    background:
+      radial-gradient(ellipse at 50% 35%, rgba(255,200,120,0.07), transparent 60%),
+      radial-gradient(ellipse at center, rgba(8,4,2,0.55), rgba(0,0,0,0.92)),
+      linear-gradient(180deg, #4a4634 0%, #2a2418 55%, #14100a 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; z-index: 20; transition: opacity 0.4s;
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+  #overlay::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg,
+      transparent 0, transparent 2px,
+      rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px);
+    opacity: 0.7;
+    z-index: 1;
+  }
+  #menuPanel {
+    position: relative; z-index: 2;
+    width: min(560px, 92vw);
+    padding: 36px 28px 24px;
+    background: rgba(20, 14, 8, 0.92);
+    border: 4px solid #ffcc33;
+    box-shadow:
+      0 0 0 2px #1a0a02,
+      0 0 0 6px #5a3a20,
+      0 0 50px rgba(255,170,60,0.35),
+      inset 0 0 22px rgba(0,0,0,0.85);
+    text-align: center;
+    font-family: "Courier New", monospace;
+  }
+  #overTitle {
+    font-size: 64px; margin-bottom: 4px;
+    color: var(--gold);
+    text-shadow: 4px 4px 0 var(--red-dark), 7px 7px 0 #1a0a04, 0 0 28px rgba(255,170,60,0.4);
+    letter-spacing: 8px;
+    line-height: 1;
+  }
+  #overSubtitle {
+    font-size: 14px; letter-spacing: 6px;
+    color: #ffe066; opacity: 0.85;
+    margin-bottom: 18px;
+  }
+  #overText {
+    font-size: 14px; letter-spacing: 1.5px;
+    color: #ddd6c4;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+  #overFooter {
+    margin-top: 22px;
+    font-size: 11px; letter-spacing: 3px;
+    color: #998870; opacity: 0.65;
+  }
+  /* === PA image buttons (Play/Load/Save/Settings/Quit) ===
+     Each button shows a "Not-Pressed" sprite; on hover/active it swaps to the
+     "Pressed" variant via the .paBtn:hover state. The src URLs are injected
+     by JS (so the base64 data lives in PA_UI rather than CSS). */
+  #overMenu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+    padding: 4px 0;
+  }
+  /* Main-menu image buttons. Each button renders an <img> child whose src is
+     set by paintMenuButtons() from the PA_UI inlined data URIs. Using an <img>
+     (instead of CSS background-image) means the button is visible the moment
+     the DOM parses — no dependency on JS running in any particular order. */
+  .paBtn {
+    width: 100%;
+    height: 64px;
+    background: transparent;
+    border: none; padding: 0; margin: 0;
+    cursor: pointer;
+    image-rendering: pixelated;
+    transition: transform 0.06s ease-out, filter 0.12s;
+    filter: drop-shadow(0 4px 0 rgba(0,0,0,0.6));
+    display: flex; align-items: center; justify-content: center;
+    /* Text fallback shown if the <img> failed to paint for any reason */
+    color: #ffe066; font-family: 'Courier New', monospace; font-weight: bold;
+    font-size: 18px; letter-spacing: 6px;
+    text-shadow: 2px 2px 0 #1a0a02;
+  }
+  .paBtn img {
+    max-width: 100%; max-height: 100%;
+    width: auto; height: 100%;
+    image-rendering: pixelated;
+    pointer-events: none;
+    object-fit: contain;
+  }
+  .paBtn:hover { transform: translateY(-2px); filter: drop-shadow(0 6px 0 rgba(0,0,0,0.6)) brightness(1.08); }
+  .paBtn:active { transform: translateY(2px); filter: drop-shadow(0 2px 0 rgba(0,0,0,0.6)); }
+  .paBtn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  /* Game-over respawn / mainmenu buttons reuse paBtn styling. */
+  .paBtn.wide { grid-column: span 2; }
+  /* Compact menu for narrow screens */
+  @media (max-width: 520px) {
+    #overMenu { grid-template-columns: 1fr; }
+    .paBtn { height: 56px; }
+    #overTitle { font-size: 44px; letter-spacing: 5px; }
+  }
+  .hidden { opacity: 0; pointer-events: none; }
+  #vignette {
+    position: absolute; inset: 0; pointer-events: none; z-index: 5;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.4) 100%);
+  }
+  #damageFlash {
+    position: absolute; inset: 0; pointer-events: none; z-index: 6;
+    background: radial-gradient(ellipse at center, rgba(180,20,20,0) 35%, rgba(180,20,20,0) 65%, rgba(180,20,20,0) 100%);
+    transition: background 0.22s;
+  }
+  #damageFlash.flash {
+    /* Vignette punch: clear in the center, blood-red around the edges. Reads
+       as "I just took a hit" instead of a flat red curtain across the screen. */
+    background: radial-gradient(ellipse at center,
+      rgba(255,40,40,0.05) 25%,
+      rgba(180,20,20,0.55) 80%,
+      rgba(120,8,8,0.85) 100%);
+  }
+
+  /* Hit-flash: warm radial bloom on every connect for that punch-in-the-eye satisfaction */
+  #hitFlash {
+    position: absolute; inset: 0; pointer-events: none; z-index: 4;
+    background: radial-gradient(ellipse at center, rgba(255,210,120,0.35) 0%, rgba(255,180,80,0.15) 30%, transparent 60%);
+    opacity: 0; transition: opacity 0.18s ease-out;
+  }
+  #hitFlash.flash { opacity: 1; transition: opacity 0.04s linear; }
+  #hitFlash.crit  { background: radial-gradient(ellipse at center, rgba(255,170,80,0.55) 0%, rgba(255,90,40,0.25) 35%, transparent 65%); }
+
+  /* ===== COMBO GAUGE: top-center, alternates left/right tilt on each hit ===== */
+  #comboGauge {
+    position: absolute; top: 16px; left: 50%;
+    transform: translate(-50%, 0); transform-origin: 50% 50%;
+    /* Responsive: hard cap 420px desktop, but never overflow viewport on mobile */
+    width: min(420px, 92vw); pointer-events: none;
+    opacity: 0;  /* JS sets opacity directly each frame from comboTimer */
+    text-align: center;
+    image-rendering: pixelated;
+    /* Smooth opacity transitions stop the gauge from popping in/out when combo
+       hits or dies. JS still sets target opacity per frame; the transition
+       interpolates between values for a clean fade. */
+    transition: opacity 0.18s ease-out;
+  }
+  /* On each hit: shake the BAR sideways in place. No screen-level motion. */
+  #comboGauge.punch.left  #comboTrack { animation: comboShakeL 0.28s steps(8, end); }
+  #comboGauge.punch.right #comboTrack { animation: comboShakeR 0.28s steps(8, end); }
+  @keyframes comboShakeL {
+    0%   { transform: translate3d(0,0,0); }
+    25%  { transform: translate3d(-8px,0,0); }
+    50%  { transform: translate3d(6px,0,0); }
+    75%  { transform: translate3d(-3px,0,0); }
+    100% { transform: translate3d(0,0,0); }
+  }
+  @keyframes comboShakeR {
+    0%   { transform: translate3d(0,0,0); }
+    25%  { transform: translate3d(8px,0,0); }
+    50%  { transform: translate3d(-6px,0,0); }
+    75%  { transform: translate3d(3px,0,0); }
+    100% { transform: translate3d(0,0,0); }
+  }
+  /* Retro pixelated label "COMBO x05" with stair-step shadow */
+  #comboCount {
+    font-family: "Courier New", monospace; font-weight: bold;
+    font-size: 30px; letter-spacing: 5px;
+    color: #ffe066;
+    line-height: 1; margin-bottom: 6px;
+    /* Pixel-stair drop shadow (multi-offset, no blur) for 8-bit look */
+    text-shadow:
+      2px 0 0 #cc3300, 0 2px 0 #cc3300, -2px 0 0 #cc3300, 0 -2px 0 #cc3300,
+      4px 4px 0 #1a0a02;
+  }
+  #comboGauge.max #comboCount {
+    color: #ffffff;
+    animation: comboCountFlare 0.4s steps(2) infinite;
+  }
+  @keyframes comboCountFlare {
+    0%   { color: #ffffff; text-shadow: 2px 0 0 #ff3300, 0 2px 0 #ff3300, -2px 0 0 #ff3300, 0 -2px 0 #ff3300, 4px 4px 0 #1a0a02; }
+    50%  { color: #ffee44; text-shadow: 2px 0 0 #ff7700, 0 2px 0 #ff7700, -2px 0 0 #ff7700, 0 -2px 0 #ff7700, 4px 4px 0 #1a0a02; }
+  }
+  /* Chunky retro track. Sharp corners. Thick black/gold bevel border. */
+  #comboTrack {
+    width: 100%; height: 36px;
+    background: #100804;
+    border: 4px solid #ffcc33;
+    box-shadow:
+      0 0 0 2px #5a3a20,
+      0 0 0 4px #1a0a02,
+      0 0 18px rgba(255,160,40,0.45),
+      inset 0 0 8px rgba(0,0,0,0.9);
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+  }
+  /* CRT-style scanline overlay for retro CRT vibe */
+  #comboTrack::after {
+    content: ""; position: absolute; inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0, transparent 2px,
+      rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 3px);
+    z-index: 2;
+  }
+  /* Single smooth fill that grows with combo. Width animated via CSS transition. */
+  #comboFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(180deg, #ffee88 0%, #ff9933 50%, #cc3300 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,200,0.6),
+      inset 0 -2px 0 rgba(80,0,0,0.55),
+      0 0 12px rgba(255,170,60,0.7);
+    transition: width 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative; z-index: 1;
+  }
+  #comboGauge.max #comboTrack { border-color: #ff5522; box-shadow: 0 0 0 2px #cc1100, 0 0 0 4px #1a0a02, 0 0 28px rgba(255,80,40,0.7), inset 0 0 8px rgba(0,0,0,0.9); }
+  #comboGauge.max #comboFill {
+    background: linear-gradient(180deg, #ffffff 0%, #ffee44 35%, #ff3300 70%, #aa0000 100%);
+    animation: comboFillFlare 0.32s steps(2) infinite;
+  }
+  @keyframes comboFillFlare {
+    0%   { box-shadow: inset 0 2px 0 rgba(255,255,255,0.7), 0 0 10px rgba(255,150,50,0.8); }
+    50%  { box-shadow: inset 0 2px 0 rgba(255,255,255,1.0), 0 0 22px rgba(255,200,100,1.0); }
+  }
+  /* ===== BOSS HP BAR — full-width strip at top, only shown during boss fight ===== */
+  #bossBar {
+    position: absolute; top: 18px; left: 50%;
+    transform: translate(-50%, -10px);
+    width: min(640px, 70vw);
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 11;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+  }
+  #bossBar.show { opacity: 1; transform: translate(-50%, 0); }
+  #bossBar .bossName {
+    color: #ff5566; font-weight: bold; font-size: 16px;
+    letter-spacing: 5px; margin-bottom: 4px;
+    text-shadow: 2px 2px 0 #1a0a02, 0 0 16px rgba(255,80,80,0.6);
+  }
+  #bossBar .bossSub {
+    display: inline-block; color: #ddd6c4;
+    font-size: 10px; letter-spacing: 3px;
+    margin-bottom: 6px; opacity: 0.75;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #bossBarTrack {
+    width: 100%; height: 18px;
+    background: rgba(20, 8, 4, 0.92);
+    border: 3px solid #b8221a;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 22px rgba(255,40,40,0.45), inset 0 0 8px rgba(0,0,0,0.85);
+    overflow: hidden; position: relative;
+  }
+  #bossBarFill {
+    height: 100%; width: 100%;
+    background: linear-gradient(180deg, #ff7766 0%, #e02818 50%, #6a0606 100%);
+    box-shadow: inset 0 2px 0 rgba(255,210,180,0.45);
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  #bossBarFill::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,255,255,0.05) 8px 9px);
+    pointer-events: none;
+  }
+
+  /* ===== DAMAGE DIRECTION VIGNETTE — red glow on the side hit came from ===== */
+  #dmgDirN, #dmgDirS, #dmgDirE, #dmgDirW {
+    position: absolute; pointer-events: none;
+    opacity: 0; z-index: 9;
+    transition: opacity 0.6s ease-out;
+  }
+  #dmgDirN { top: 0; left: 0; right: 0; height: 22%;
+    background: linear-gradient(180deg, rgba(255,40,40,0.55), rgba(255,40,40,0)); }
+  #dmgDirS { bottom: 0; left: 0; right: 0; height: 22%;
+    background: linear-gradient(0deg,   rgba(255,40,40,0.55), rgba(255,40,40,0)); }
+  #dmgDirW { top: 0; bottom: 0; left: 0; width: 22%;
+    background: linear-gradient(90deg,  rgba(255,40,40,0.55), rgba(255,40,40,0)); }
+  #dmgDirE { top: 0; bottom: 0; right: 0; width: 22%;
+    background: linear-gradient(270deg, rgba(255,40,40,0.55), rgba(255,40,40,0)); }
+  #dmgDirN.flash, #dmgDirS.flash, #dmgDirE.flash, #dmgDirW.flash {
+    opacity: 1; transition: opacity 0.05s ease-in;
+  }
+
+  /* ===== AUTOSAVE TOAST — small lower-left badge ===== */
+  #autosaveToast {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(18, 10, 4, 0.92);
+    border: 2px solid #66e2c8;
+    color: #66e2c8; font-family: 'Courier New', monospace;
+    font-weight: bold; font-size: 11px; letter-spacing: 3px;
+    padding: 6px 12px;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 14px rgba(102,226,200,0.35);
+    z-index: 11; pointer-events: none;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #autosaveToast.show { opacity: 1; transform: translateY(0); }
+  #autosaveToast::before {
+    content: "✓"; margin-right: 6px; color: #88ffd0;
+  }
+
+  /* ===== ABILITY COOLDOWN — radial sweep + flash on ready ===== */
+  .abilitySlot .cdSweep {
+    position: absolute; inset: 0; pointer-events: none;
+    background: conic-gradient(rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.7) var(--cd-pct, 0%), transparent var(--cd-pct, 0%) 100%);
+    transition: --cd-pct 0.05s linear;
+  }
+  .abilitySlot .cdSweep.full { background: rgba(0,0,0,0.7); }
+  .abilitySlot.justReady { animation: abReady 0.55s ease-out; }
+  @keyframes abReady {
+    0%   { box-shadow: 0 0 0 2px #5a3a20, 0 0 16px rgba(255,170,60,0.5), inset 0 0 8px rgba(0,0,0,0.6); }
+    40%  { box-shadow: 0 0 0 2px #ffe066, 0 0 32px rgba(255,220,120,1.0), inset 0 0 8px rgba(255,200,60,0.4); }
+    100% { box-shadow: 0 0 0 2px #5a3a20, 0 0 16px rgba(255,170,60,0.5), inset 0 0 8px rgba(0,0,0,0.6); }
+  }
+  /* Allow custom property animation on cdSweep */
+  @property --cd-pct { syntax: '<percentage>'; initial-value: 0%; inherits: false; }
+
+  /* ===== MINIMAP (top-right corner radar with objective markers) ===== */
+  #minimap {
+    position: absolute; top: 16px; right: 16px;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle at 50% 50%, rgba(34,26,18,0.94) 0%, rgba(12,8,5,0.97) 100%);
+    border: 2px solid #c9a35c;
+    box-shadow: 0 0 0 2px #1a0a02, 0 4px 14px rgba(0,0,0,0.55), inset 0 0 18px rgba(0,0,0,0.65);
+    z-index: 11; pointer-events: none;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+  #minimap canvas { display: block; image-rendering: pixelated; }
+  #minimap .mmLabel {
+    position: absolute; top: 4px; left: 0; right: 0; text-align: center;
+    color: #ffcc33; font-size: 9px; letter-spacing: 3px; font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+    z-index: 2; pointer-events: none;
+  }
+  /* Compass cardinals overlaid on the rim — N at top, S bottom, etc. */
+  #minimap .mmCompass {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 2;
+    color: #ffe066; font-family: 'Courier New', monospace;
+    font-weight: bold; font-size: 11px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #minimap .mmCompass span { position: absolute; }
+  #minimap .mmN { top: 14px; left: 50%; transform: translateX(-50%); }
+  #minimap .mmS { bottom: 14px; left: 50%; transform: translateX(-50%); color: #ddd6c4; }
+  #minimap .mmE { top: 50%; right: 8px;  transform: translateY(-50%); color: #ddd6c4; }
+  #minimap .mmW { top: 50%; left: 8px;   transform: translateY(-50%); color: #ddd6c4; }
+  /* Bottom-center "objective ↑ 32m" readout drawn as DOM (not canvas) so the
+     text is sharp regardless of the canvas pixelation. */
+  #minimap .mmObjective {
+    position: absolute; bottom: 6px; left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none; z-index: 3;
+    background: rgba(20,10,4,0.85);
+    border: 1px solid #ffcc33;
+    color: #ffe066; font-family: 'Courier New', monospace;
+    font-size: 10px; letter-spacing: 1.5px; font-weight: bold;
+    padding: 2px 6px;
+    text-shadow: 1px 1px 0 #000;
+    white-space: nowrap;
+    max-width: 88%;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #minimap .mmObjective:empty { display: none; }
+  @media (max-width: 720px) {
+    #minimap { width: 180px; height: 180px; top: 12px; right: 12px; }
+  }
+
+  /* ===== XP / LEVEL BAR (slim strip under the health bar) ===== */
+  #xpBar {
+    width: 320px; height: 16px;
+    background: rgba(20, 12, 6, 0.85);
+    border: 2px solid #5a3a20;
+    border-radius: 4px;
+    margin-top: 6px; overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(0,0,0,0.85);
+  }
+  #xpFill {
+    height: 100%;
+    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 50%, #aa5500 100%);
+    box-shadow: inset 0 1px 0 rgba(255,220,160,0.55), 0 0 8px rgba(255,200,80,0.45);
+    transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  #xpLabel {
+    position: absolute; top: 0; left: 0; right: 0; height: 100%;
+    text-align: center; line-height: 16px; font-size: 10px;
+    color: #fff; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events: none;
+  }
+  /* "Next perk in N XP" hint that appears under the XP bar so the player
+     always knows how close the next talent pick is. */
+  #xpHint {
+    width: 320px; margin-top: 4px;
+    font-size: 10px; letter-spacing: 2px;
+    color: #ffe066; font-family: 'Courier New', monospace;
+    text-shadow: 1px 1px 0 #000;
+    opacity: 0.85;
+  }
+  #xpHint .xpHintTalent { color: #88ffd0; }
+  #levelBadge {
+    display: inline-block;
+    background: linear-gradient(180deg, #ffcc33 0%, #ff8844 100%);
+    color: #1a0a02; font-weight: bold;
+    padding: 2px 9px; margin-left: 8px;
+    border: 2px solid #1a0a02; border-radius: 3px;
+    font-size: 13px; letter-spacing: 1px;
+    text-shadow: none;
+    box-shadow: 0 0 10px rgba(255,200,80,0.45);
+  }
+
+  /* ===== KILL STREAK FLOATING TEXT ===== */
+  #streakBadge {
+    position: absolute; top: 17%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-family: 'Courier New', monospace; font-weight: bold;
+    pointer-events: none; z-index: 10;
+    color: #ff8844; font-size: 28px; letter-spacing: 4px;
+    text-shadow: 3px 3px 0 #1a0a02, 0 0 18px rgba(255,140,60,0.7);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease;
+    opacity: 0;
+  }
+  #streakBadge.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  #streakBadge.high { color: #ff3344; font-size: 36px; text-shadow: 4px 4px 0 #1a0a02, 0 0 24px rgba(255,80,80,0.85); }
+  #streakBadge.legendary { color: #ffe066; font-size: 44px; text-shadow: 5px 5px 0 #1a0a02, 0 0 32px rgba(255,220,80,0.95); }
+
+  /* ===== TALENT PICK MODAL (level-up rewards) ===== */
+  #talentOverlay {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(40,28,16,0.55), rgba(0,0,0,0.88));
+    display: flex; align-items: center; justify-content: center;
+    z-index: 25; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #talentOverlay.show { opacity: 1; pointer-events: auto; }
+  #talentFrame {
+    width: min(820px, 94vw);
+    background: rgba(20, 14, 8, 0.96);
+    border: 4px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 60px rgba(255,170,60,0.45);
+    padding: 28px 24px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+  }
+  #talentTitle {
+    color: #ffcc33; font-size: 26px; letter-spacing: 6px; font-weight: bold;
+    margin-bottom: 4px;
+    text-shadow: 2px 2px 0 #000, 0 0 22px rgba(255,200,80,0.55);
+  }
+  #talentSub {
+    color: #ddd6c4; font-size: 13px; letter-spacing: 2px;
+    margin-bottom: 22px;
+  }
+  #talentChoices {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .talentCard {
+    background: linear-gradient(180deg, rgba(40,30,18,0.95), rgba(15,8,4,0.95));
+    border: 3px solid #5a3a20;
+    padding: 18px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    box-shadow: 0 0 12px rgba(0,0,0,0.6);
+  }
+  .talentCard:hover {
+    transform: translateY(-4px);
+    border-color: #ffcc33;
+    box-shadow: 0 0 22px rgba(255,200,80,0.5);
+  }
+  .talentCard.sel {
+    transform: translateY(-4px);
+    border-color: #ffcc33;
+    box-shadow: 0 0 28px rgba(255,200,80,0.7);
+  }
+  .talentCard .tName { color: #ffe066; font-size: 18px; letter-spacing: 2px; font-weight: bold; margin-bottom: 6px; text-shadow: 2px 2px 0 #000; }
+  .talentCard .tDesc { color: #ddd6c4; font-size: 12px; line-height: 1.5; }
+  .talentCard .tIcon { font-size: 26px; margin-bottom: 8px; color: #ffaa44; }
+  @media (max-width: 720px) {
+    #talentChoices { grid-template-columns: 1fr; }
+  }
+
+  /* ===== QUEST JOURNAL OVERLAY (press J) ===== */
+  #journalOverlay {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(20,12,6,0.85), rgba(0,0,0,0.92));
+    display: flex; align-items: center; justify-content: center;
+    z-index: 24; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #journalOverlay.show { opacity: 1; pointer-events: auto; }
+  #journalFrame {
+    width: min(680px, 92vw); max-height: 80vh; overflow-y: auto;
+    background: rgba(20, 14, 8, 0.96);
+    border: 4px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 50px rgba(255,170,60,0.35);
+    padding: 28px 28px 20px;
+    font-family: 'Courier New', monospace;
+  }
+  #journalTitle { color: #ffcc33; font-size: 24px; letter-spacing: 6px; font-weight: bold; text-align: center; margin-bottom: 4px; text-shadow: 2px 2px 0 #000; }
+  #journalSub { color: #ddd6c4; font-size: 11px; letter-spacing: 2px; text-align: center; margin-bottom: 18px; opacity: 0.7; }
+  .journalEntry { padding: 12px 14px; margin: 8px 0; border-left: 3px solid #5a3a20; background: rgba(40,28,16,0.6); }
+  .journalEntry.active { border-left-color: #ffcc33; background: rgba(60,40,20,0.7); box-shadow: 0 0 12px rgba(255,200,80,0.25); }
+  .journalEntry.done { border-left-color: #66e2c8; opacity: 0.7; }
+  .journalEntry .jName { color: #ffe066; font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; text-shadow: 1px 1px 0 #000; }
+  .journalEntry.done .jName { color: #66e2c8; text-decoration: line-through; }
+  .journalEntry .jBody { color: #ddd6c4; font-size: 12px; line-height: 1.5; margin-top: 2px; }
+  .journalEntry .jNext { color: #ffe066; font-size: 12px; margin-top: 6px; padding-top: 5px; border-top: 1px dashed rgba(255,204,51,0.25); letter-spacing: 0.5px; }
+  .journalSectionHeader { color: #ffcc33; font-size: 13px; font-weight: bold; letter-spacing: 4px; text-align: center; margin: 18px 0 8px; padding: 6px 0; border-top: 1px solid rgba(255,204,51,0.25); border-bottom: 1px solid rgba(255,204,51,0.25); text-shadow: 1px 1px 0 #000; }
+  .journalSectionHeader:first-child { margin-top: 0; }
+  .journalEntry .jStatus { display: inline-block; margin-left: 8px; padding: 1px 7px; font-size: 10px; letter-spacing: 1px; border: 1px solid currentColor; }
+  .journalEntry.active .jStatus { color: #ffcc33; }
+  .journalEntry.done .jStatus { color: #66e2c8; }
+  #journalClose { text-align: center; color: #888; font-size: 11px; letter-spacing: 2px; margin-top: 14px; }
+
+  /* ===== OBJECTIVE PANEL — quest tracker bottom-right ===== */
+  #objectivePanel {
+    position: absolute; bottom: 16px; right: 16px;
+    pointer-events: none;
+    font-family: "Courier New", monospace;
+    background: linear-gradient(180deg, rgba(28,18,10,0.94) 0%, rgba(10,6,3,0.96) 100%);
+    border: 3px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 22px rgba(255,204,51,0.35), inset 0 0 14px rgba(0,0,0,0.5);
+    padding: 14px 18px 16px;
+    min-width: 300px; max-width: 360px;
+    z-index: 11;
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    opacity: 0; transform: translateX(20px);
+  }
+  #objectivePanel::before {
+    content: ""; position: absolute; top: -3px; left: -3px;
+    width: 14px; height: 14px;
+    border-top: 3px solid #ffe066; border-left: 3px solid #ffe066;
+    pointer-events: none;
+  }
+  #objectivePanel::after {
+    content: ""; position: absolute; bottom: -3px; right: -3px;
+    width: 14px; height: 14px;
+    border-bottom: 3px solid #ffe066; border-right: 3px solid #ffe066;
+    pointer-events: none;
+  }
+  #objectivePanel.show { opacity: 1; transform: translateX(0); }
+  #objectivePanel .objHeader {
+    display: flex; align-items: center; gap: 6px;
+    color: #ffcc33; font-weight: bold; letter-spacing: 3px;
+    font-size: 11px; opacity: 0.95; margin-bottom: 8px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #objectivePanel .objHeader::before {
+    content: "✦"; color: #ffe066; font-size: 14px;
+    text-shadow: 0 0 8px rgba(255,200,80,0.7);
+  }
+  #objectivePanel .objStageNum {
+    margin-left: 4px; padding: 1px 7px;
+    background: rgba(255,204,51,0.18);
+    color: #ffe066; font-size: 10px; letter-spacing: 1px;
+    border: 1px solid #ffcc33;
+  }
+  #objectivePanel .objHeader .objJournalHint {
+    margin-left: auto; font-size: 9px; letter-spacing: 1px;
+    color: #998870; opacity: 0.85;
+  }
+  /* Now the title is the action verb (e.g. "GO TO MAYOR ALDRIC"), and the
+     body underneath gives one-sentence "where" context. Bigger font, brighter.*/
+  #objectivePanel .objTitle {
+    color: #ffe066; font-weight: bold; font-size: 18px;
+    letter-spacing: 1.5px; line-height: 1.2;
+    text-shadow: 2px 2px 0 #000, 0 0 12px rgba(255,200,80,0.4);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  #objectivePanel .objBody {
+    color: #ddd6c4; font-size: 12px; line-height: 1.45;
+    text-shadow: 1px 1px 0 #000;
+    margin-bottom: 8px;
+  }
+  /* "Next:" line — the literal next action the player should take, bolder
+     than body. Renders only when set (we hide it when empty). */
+  #objectivePanel .objNext {
+    color: #66e2c8; font-size: 12px; font-weight: bold;
+    letter-spacing: 1px; line-height: 1.4;
+    text-shadow: 1px 1px 0 #000;
+    border-left: 3px solid #66e2c8; padding-left: 8px;
+    margin-bottom: 10px;
+  }
+  #objectivePanel .objNext::before {
+    content: "▶ "; color: #66e2c8;
+  }
+  #objectivePanel .objNext:empty { display: none; }
+  /* Step pip row — five dots representing the five quest stages. Filled gold
+     for done, glowing gold for active, faded for locked. Gives an immediate
+     "where am I in the journey" read without forcing the player into the
+     journal. */
+  #objectivePanel .objSteps {
+    display: flex; gap: 6px; margin-top: 4px;
+    align-items: center;
+  }
+  #objectivePanel .objStep {
+    flex: 1; height: 8px;
+    background: rgba(20, 12, 6, 0.85);
+    border: 2px solid #5a3a20;
+    transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+  #objectivePanel .objStep.done {
+    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 100%);
+    border-color: #ffcc33;
+  }
+  #objectivePanel .objStep.active {
+    background: linear-gradient(180deg, #fff7c8 0%, #ffe066 100%);
+    border-color: #ffcc33;
+    box-shadow: 0 0 12px rgba(255,220,120,0.85);
+    animation: stepPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes stepPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,220,120,0.5); }
+    50%      { box-shadow: 0 0 16px rgba(255,230,150,1.0); }
+  }
+  #objectivePanel .objProgress {
+    margin-top: 8px; color: #66e2c8;
+    font-size: 12px; font-weight: bold; letter-spacing: 2px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #objectivePanel .objProgress:empty { display: none; }
+  #objectivePanel .objBar {
+    margin-top: 6px; height: 6px;
+    background: rgba(20, 12, 6, 0.85);
+    border: 1px solid #5a3a20; border-radius: 2px;
+    overflow: hidden;
+  }
+  #objectivePanel .objBarFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(180deg, #ffe066 0%, #ffaa44 100%);
+    transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Distance-to-objective indicator. Lights up only when an active world
+     target exists. */
+  #objectivePanel .objDistance {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed #5a3a20;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; letter-spacing: 2px; color: #ddd6c4;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #objectivePanel .objDistance .objDist {
+    color: #ffe066; font-weight: bold;
+  }
+  #objectivePanel .objDistance:empty { display: none; }
+  #objectivePanel.completed .objTitle { color: #66e2c8; }
+  #objectivePanel.completed .objBarFill { background: linear-gradient(180deg, #88ffd0 0%, #66e2c8 100%); }
+  @keyframes objPulse {
+    0%, 100% { box-shadow: 0 0 0 2px #1a0a02, 0 0 18px rgba(255,204,51,0.30); }
+    50%      { box-shadow: 0 0 0 2px #1a0a02, 0 0 28px rgba(255,220,120,0.7); }
+  }
+  #objectivePanel.flash { animation: objPulse 0.7s ease-in-out 2; }
+
+  /* ===== STORY BANNER — full-screen narration card for big story beats ===== */
+  /* Banners sit higher (top 28%) instead of dead-center, so they don't cover
+     the player. Smaller scale, clearly dismissible via the corner X or by
+     clicking the body. Default duration is short (2.4s) — long enough to
+     read, short enough not to block movement. */
+  #storyBanner {
+    position: absolute; top: 28%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    width: min(560px, 80vw);
+    pointer-events: none; opacity: 0;
+    background: rgba(8, 4, 2, 0.92);
+    border: 4px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 60px rgba(255,180,60,0.45);
+    padding: 18px 22px 16px;
+    z-index: 14;
+    font-family: "Courier New", monospace;
+    text-align: center;
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    cursor: pointer;
+  }
+  #storyBanner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  #storyBanner .stTitle {
+    color: #ffcc33; font-size: 18px; letter-spacing: 4px; font-weight: bold;
+    margin-bottom: 8px; text-shadow: 2px 2px 0 #000;
+    padding-right: 26px; /* leave room for the X */
+  }
+  #storyBanner .stBody {
+    color: #ddd6c4; font-size: 13px; line-height: 1.45;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #storyBanner .stHint {
+    margin-top: 10px;
+    color: #998870; font-size: 10px; letter-spacing: 2px;
+    opacity: 0.7;
+  }
+  #storyBannerClose {
+    position: absolute; top: 4px; right: 6px;
+    width: 24px; height: 24px;
+    background: transparent; border: 2px solid #ffcc33;
+    color: #ffcc33; font-family: 'Courier New', monospace; font-weight: bold;
+    font-size: 14px; line-height: 18px; text-align: center;
+    cursor: pointer; padding: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  #storyBannerClose:hover { background: #ffcc33; color: #1a0a02; }
+
+  /* ===== INTERACT PROMPT (floating "Press E to talk" near NPCs) ===== */
+  #interactPrompt {
+    position: absolute; top: 64%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.92);
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.16s ease-out, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-family: "Courier New", monospace; font-weight: bold;
+    font-size: 18px; letter-spacing: 2px;
+    color: #ffe066;
+    text-shadow: 2px 0 0 #1a0a02, 0 2px 0 #1a0a02, -2px 0 0 #1a0a02, 0 -2px 0 #1a0a02;
+    background: rgba(20, 12, 6, 0.92);
+    padding: 10px 20px;
+    border: 3px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 18px rgba(255, 204, 51, 0.45);
+    z-index: 15;  /* above HUD, below modals/title overlay */
+  }
+  #interactPrompt.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #interactPrompt .key {
+    display: inline-block;
+    background: #ffcc33; color: #1a0a02;
+    padding: 3px 10px;
+    margin-right: 8px;
+    text-shadow: none;
+    font-size: 16px;
+    border: 2px solid #1a0a02;
+  }
+
+  /* ===== DIALOG BOX — full visual redesign =====
+     Polished feel: split header for the speaker, gradient body, gold-glow
+     border, animated entrance, choice-arrow CSS pseudo-elements (no more
+     manual textContent prefix), typewriter blinking cursor, footer hint bar
+     separated by a subtle divider. The whole dialog scales + slides up on
+     open and fades out smoothly on close. */
+  #dialogBox {
+    position: absolute; bottom: 6%; left: 50%;
+    transform: translate(-50%, 30px) scale(0.94);
+    width: min(780px, 92vw);
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.3s ease-out, transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-family: "Courier New", monospace;
+    z-index: 12;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55));
+  }
+  #dialogBox.show {
+    opacity: 1; pointer-events: auto;
+    transform: translate(-50%, 0) scale(1);
+  }
+  #dialogFrame {
+    background: linear-gradient(180deg, rgba(34, 20, 10, 0.97) 0%, rgba(14, 7, 3, 0.97) 100%);
+    border: 4px solid #ffcc33;
+    box-shadow:
+      0 0 0 2px #5a3a20,
+      0 0 0 4px #1a0a02,
+      0 0 32px rgba(255, 170, 60, 0.45),
+      inset 0 0 18px rgba(0, 0, 0, 0.85),
+      inset 0 1px 0 rgba(255, 220, 130, 0.18);
+    padding: 0;
+    color: #f0e8d8;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Soft pulsing inner glow on the border for atmosphere — never fully off */
+  #dialogFrame::before {
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 24px rgba(255, 200, 100, 0.0);
+    animation: dialogPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes dialogPulse {
+    0%, 100% { box-shadow: inset 0 0 22px rgba(255, 200, 100, 0.10); }
+    50%      { box-shadow: inset 0 0 30px rgba(255, 200, 100, 0.22); }
+  }
+  .shopCloseBtn, .dialogCloseBtn {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 32px; height: 32px;
+    background: transparent; color: #ffe066;
+    border: 1px solid rgba(255, 224, 102, 0.18);
+    border-radius: 4px; font-size: 16px; line-height: 1;
+    cursor: pointer; z-index: 60; pointer-events: auto;
+    transition: all 0.18s ease;
+  }
+  .shopCloseBtn:hover, .dialogCloseBtn:hover {
+    background: rgba(255, 204, 51, 0.12);
+    border-color: #ffe066; color: #fff;
+    transform: rotate(90deg);
+  }
+  /* Speaker — header bar with bottom border, glowing name */
+  #dialogSpeaker {
+    display: block;
+    background: linear-gradient(180deg, rgba(90, 58, 28, 0.78), rgba(40, 22, 10, 0.55));
+    border-bottom: 2px solid #ffcc33;
+    padding: 13px 24px 11px;
+    font-size: 19px; font-weight: bold; letter-spacing: 5px;
+    color: #ffe066;
+    text-shadow: 2px 2px 0 #1a0a02, 0 0 14px rgba(255, 170, 60, 0.55);
+    text-transform: uppercase;
+  }
+  #dialogSpeaker:empty { display: none; }
+  /* Body text — generous padding, soft cream color, blinking cursor while typing */
+  #dialogText {
+    padding: 18px 26px 4px;
+    font-size: 16px; line-height: 1.7; letter-spacing: 0.6px;
+    color: #ece4d0; min-height: 60px;
+  }
+  #dialogText .tw-cursor {
+    display: inline-block;
+    width: 9px; height: 1.0em;
+    background: #ffcc33;
+    margin-left: 3px;
+    vertical-align: text-bottom;
+    box-shadow: 0 0 8px rgba(255, 204, 51, 0.7);
+    animation: twBlink 0.7s steps(1) infinite;
+  }
+  @keyframes twBlink {
+    0%, 50%   { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+  /* Choices — vertical list with animated arrow indicator (no manual prefix) */
+  #dialogChoices {
+    margin: 6px 18px 4px;
+    display: flex; flex-direction: column; gap: 6px;
+    position: relative;
+  }
+  #dialogChoices:empty { display: none; }
+  .dialogChoice {
+    background: rgba(40, 22, 10, 0.7);
+    border: 2px solid #5a3a20;
+    padding: 11px 16px 11px 38px;
+    color: #ddd6c4;
+    font-family: inherit; font-size: 15px; letter-spacing: 1.5px;
+    cursor: pointer; text-align: left;
+    pointer-events: auto;
+    position: relative;
+    transition: background 0.18s ease, border-color 0.18s ease,
+                color 0.18s ease, transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.18s ease, padding-left 0.18s ease;
+    border-radius: 2px;
+  }
+  /* The › arrow lives in CSS, not in textContent. It fades + slides in
+     when the row gets the .sel class. */
+  .dialogChoice::before {
+    content: '›';
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%) translateX(-6px);
+    color: #ffcc33;
+    font-size: 24px; font-weight: bold;
+    line-height: 1;
+    opacity: 0;
+    text-shadow: 0 0 8px rgba(255, 204, 51, 0.7);
+    transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .dialogChoice:hover:not(.sel) {
+    background: rgba(56, 34, 14, 0.88);
+    border-color: #aa8030;
+    color: #fff5cc;
+  }
+  .dialogChoice.sel {
+    background: linear-gradient(90deg, rgba(110, 70, 28, 0.96) 0%, rgba(70, 44, 18, 0.96) 100%);
+    border-color: #ffcc33;
+    color: #ffffff;
+    transform: translateX(8px);
+    padding-left: 42px;
+    box-shadow:
+      0 0 14px rgba(255, 204, 51, 0.45),
+      inset 0 0 0 1px rgba(255, 224, 102, 0.30);
+    text-shadow: 0 0 8px rgba(255, 224, 102, 0.55);
+  }
+  .dialogChoice.sel::before {
+    opacity: 1;
+    transform: translateY(-50%) translateX(2px);
+  }
+  /* Quest choice — always shown FIRST, with a yellow exclamation badge so the
+     player can tell at a glance which option progresses the active quest.
+     Slightly heavier border + warm tint to differentiate from regular options. */
+  .dialogChoice.questChoice {
+    border-color: #ffcc33;
+    background: rgba(58, 36, 14, 0.85);
+  }
+  .dialogChoice.questChoice .questBadge {
+    display: inline-block;
+    color: #1a0a02;
+    background: #ffcc33;
+    font-weight: bold;
+    padding: 1px 7px;
+    margin-right: 8px;
+    border-radius: 3px;
+    text-shadow: none;
+    font-size: 13px;
+    letter-spacing: 0;
+    box-shadow: 0 0 6px rgba(255, 204, 51, 0.55);
+  }
+  .dialogChoice.questChoice {
+    color: #ffe8a8;
+  }
+  .dialogChoice.questChoice.sel {
+    background: linear-gradient(90deg, rgba(160, 100, 32, 0.96) 0%, rgba(110, 70, 24, 0.96) 100%);
+    border-color: #ffe066;
+    color: #ffffff;
+  }
+  /* Continue prompt — plain slow-blinking text. Sits ABOVE the secondary hint
+     line so it's the first thing the player notices below the body text.
+     Larger size, generous padding, no keychip — just bold gold text fading
+     in and out gently. */
+  #dialogContinue {
+    display: block;
+    text-align: center;
+    padding: 14px 24px 8px;
+    margin-top: 6px;
+    background: transparent;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: #ffe066;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #1a0a02, 0 0 12px rgba(255, 204, 51, 0.4);
+    animation: dialogContinueBlink 2.4s ease-in-out infinite;
+  }
+  /* Slow soft blink — fades the whole prompt in and out. No size or color
+     swap, just gentle opacity. Easy on the eyes; doesn't fight the dialog
+     text for attention. */
+  @keyframes dialogContinueBlink {
+    0%, 100% { opacity: 0.30; }
+    50%      { opacity: 1.00; }
+  }
+  /* Secondary hint — small line above the continue band for the rest of the
+     keys (navigate, confirm, close). This is the spot where SPACE info lives
+     now that the bottom prompt is plain text, not a key chip. */
+  #dialogHint {
+    margin: 0 0 0;
+    padding: 4px 24px 12px;
+    background: transparent;
+    font-size: 11px;
+    color: #998870;
+    letter-spacing: 1.6px;
+    text-align: center;
+  }
+  #dialogHint:empty { display: none; }
+  #dialogHint kbd {
+    display: inline-block;
+    background: rgba(255, 204, 51, 0.15);
+    border: 1px solid rgba(255, 204, 51, 0.35);
+    border-radius: 2px;
+    padding: 1px 6px;
+    margin: 0 2px;
+    font-family: inherit;
+    font-size: 10px;
+    color: #ffe066;
+    letter-spacing: 1px;
+  }
+  /* ===== ABILITY BAR (bottom-CENTER, Q + R slot icons with cooldowns) =====
+     Promoted to dead-center bottom. The previous bottom-left position collided
+     with the controls hint and the health bar's shadow. Centering also reads
+     better as a "skill bar" — players intuitively look at the bottom-center. */
+  #abilityBar {
+    position: absolute;
+    bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: row; gap: 14px;
+    pointer-events: none; z-index: 6;
+    font-family: "Courier New", monospace;
+  }
+  @media (max-width: 720px) {
+    #abilityBar { bottom: 72px; }  /* clear thumb-zone on touch */
+  }
+  .abilitySlot {
+    position: relative;
+    width: 56px; height: 56px;
+    background: rgba(20, 12, 6, 0.78);
+    border: 3px solid #5a3a20;
+    box-shadow: 0 0 0 2px #1a0a02, inset 0 0 8px rgba(0,0,0,0.7);
+    display: none;     /* hidden by default; shown when an ability is bound */
+  }
+  .abilitySlot.bound { display: block; }
+  .abilitySlot.ready { border-color: #ffcc33; box-shadow: 0 0 0 2px #5a3a20, 0 0 16px rgba(255,170,60,0.5), inset 0 0 8px rgba(0,0,0,0.6); }
+  .abilityKey {
+    position: absolute; top: -4px; left: -4px;
+    width: 18px; height: 18px;
+    background: #ffcc33; color: #1a0a02;
+    font-size: 13px; font-weight: bold;
+    text-align: center; line-height: 18px;
+    z-index: 2;
+  }
+  .abilityIcon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: bold; letter-spacing: 1px;
+    color: #ffe066;
+    text-shadow: 2px 2px 0 #1a0a02;
+  }
+  .abilityCooldown {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+    transition: height 0.08s linear;
+    height: 0%;       /* JS sets this 0-100% */
+  }
+  .abilityName {
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 4px;
+    font-size: 10px; letter-spacing: 1.5px;
+    color: #ddd6c4;
+    white-space: nowrap;
+    text-shadow: 1px 1px 0 #1a0a02;
+    opacity: 0.8;
+  }
+  /* ===== SHOP OVERLAY (between-wave rest + buy phase) ===== */
+  #shopOverlay {
+    position: fixed; inset: 0;
+    background: rgba(8, 4, 2, 0.78);
+    z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Courier New", monospace;
+  }
+  #shopOverlay.hidden { display: none; }
+  #shopFrame {
+    position: relative;
+    width: min(560px, 92vw);
+    max-height: 88vh;
+    background: rgba(20, 12, 6, 0.95);
+    border: 4px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 32px rgba(255, 170, 60, 0.45), inset 0 0 16px rgba(0,0,0,0.7);
+    padding: 20px 24px 18px;
+    color: #ffe066;
+    display: flex; flex-direction: column; gap: 12px;
+    overflow: hidden;
+  }
+  #shopTitle {
+    font-size: 22px; font-weight: bold;
+    letter-spacing: 4px;
+    text-align: center;
+    color: #ffe066;
+    text-shadow: 2px 2px 0 #1a0a02, 0 0 12px rgba(255, 170, 60, 0.6);
+    border-bottom: 2px solid #5a3a20;
+    padding-bottom: 8px;
+  }
+  #shopSubtitle {
+    font-size: 12px; letter-spacing: 1.5px;
+    text-align: center; color: #ddd6c4;
+  }
+  #shopGoldDisplay {
+    text-align: center;
+    font-size: 16px; letter-spacing: 3px;
+    color: #ffcc33;
+    background: rgba(0,0,0,0.55);
+    border: 2px solid #5a3a20;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+    padding: 6px 12px;
+  }
+  #shopGoldDisplay span { font-size: 22px; font-weight: bold; color: #ffe066; }
+  #shopItems {
+    flex: 1; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+    padding-right: 4px;
+  }
+  .shopItem {
+    display: flex; align-items: center;
+    background: rgba(0,0,0,0.45);
+    border: 2px solid #5a3a20;
+    padding: 8px 10px;
+    gap: 10px;
+  }
+  .shopItem.bought { opacity: 0.4; border-color: #2a1a0a; }
+  .shopItemInfo { flex: 1; min-width: 0; }
+  .shopItemName {
+    font-size: 13px; font-weight: bold; letter-spacing: 1.5px;
+    color: #ffe066;
+  }
+  .shopItemDesc {
+    font-size: 11px; letter-spacing: 0.5px; color: #ddd6c4;
+    margin-top: 2px;
+  }
+  .shopBuyBtn {
+    background: #ffcc33; color: #1a0a02;
+    border: 2px solid #5a3a20;
+    box-shadow: inset 0 0 0 2px #ffe066, 0 2px 0 #5a3a20;
+    padding: 6px 12px;
+    font-family: "Courier New", monospace;
+    font-size: 12px; font-weight: bold; letter-spacing: 1.5px;
+    cursor: pointer; min-width: 88px;
+  }
+  .shopBuyBtn:hover:not(:disabled) { background: #ffe066; }
+  .shopBuyBtn:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 2px #ffe066, 0 0 0 #5a3a20; }
+  .shopBuyBtn:disabled {
+    background: #5a3a20; color: #2a1a0a;
+    cursor: not-allowed;
+    box-shadow: inset 0 0 0 2px #4a2a10;
+  }
+  #shopContinueBtn {
+    background: #1a0a02; color: #ffcc33;
+    border: 3px solid #ffcc33;
+    box-shadow: inset 0 0 0 2px #1a0a02, 0 0 18px rgba(255, 170, 60, 0.45);
+    padding: 12px 20px;
+    font-family: "Courier New", monospace;
+    font-size: 16px; font-weight: bold; letter-spacing: 4px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  #shopContinueBtn:hover { background: #2a1a0a; color: #ffe066; }
+  #shopContinueBtn:active { transform: translateY(1px); }
+
+  /* ===== PAUSE OVERLAY (Esc) ===== */
+  #pauseOverlay {
+    position: fixed; inset: 0;
+    background: rgba(8, 4, 2, 0.78);
+    z-index: 25; /* below shop modal but above HUD/flashes */
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Courier New", monospace;
+  }
+  #pauseOverlay.hidden { display: none; }
+  #pauseFrame {
+    width: min(360px, 90vw);
+    background: rgba(20, 12, 6, 0.95);
+    border: 4px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 32px rgba(255,170,60,0.4);
+    padding: 24px;
+    color: #ffe066;
+    display: flex; flex-direction: column; gap: 14px; align-items: center;
+  }
+  #pauseTitle {
+    font-size: 32px; letter-spacing: 8px; font-weight: bold;
+    text-shadow: 3px 3px 0 var(--red-dark);
+  }
+  #pauseResumeBtn, #pauseRestartBtn {
+    background: #1a0a02; color: #ffcc33;
+    border: 3px solid #ffcc33;
+    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #5a3a20;
+    padding: 12px 32px;
+    font-family: inherit; font-size: 16px; font-weight: bold; letter-spacing: 4px;
+    cursor: pointer; min-width: 200px;
+    transition: transform 0.1s, background 0.1s;
+  }
+  #pauseResumeBtn:hover, #pauseRestartBtn:hover, #pauseSettingsBtn:hover, #pauseMainMenuBtn:hover { background: #2a1a0a; color: #ffe066; }
+  #pauseResumeBtn:active, #pauseRestartBtn:active, #pauseSettingsBtn:active, #pauseMainMenuBtn:active { transform: translateY(2px); box-shadow: inset 0 0 0 2px #1a0a02, 0 2px 0 #5a3a20; }
+  #pauseSettingsBtn, #pauseMainMenuBtn {
+    background: #1a0a02; color: #ffcc33;
+    border: 3px solid #ffcc33;
+    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #5a3a20;
+    padding: 12px 32px;
+    font-family: inherit; font-size: 16px; font-weight: bold; letter-spacing: 4px;
+    cursor: pointer; min-width: 200px;
+    transition: transform 0.1s, background 0.1s;
+  }
+
+  /* ===== MAIN MENU buttons ===== */
+  #overMenu { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  #overlay button.secondary {
+    background: rgba(20, 12, 6, 0.85); color: #ffe066;
+    border: 3px solid #5a3a20;
+    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #1a0a02;
+    font-size: 18px; padding: 12px 36px;
+  }
+  #overlay button.secondary:hover { background: #2a1a0a; border-color: #ffcc33; color: #fff; }
+  #overlay button.secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ===== SETTINGS OVERLAY ===== */
+  #settingsOverlay {
+    position: fixed; inset: 0;
+    background: rgba(8, 4, 2, 0.84);
+    z-index: 30;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Courier New", monospace;
+  }
+  #settingsOverlay.hidden { display: none; }
+  #settingsFrame {
+    width: min(460px, 94vw);
+    max-height: 92vh;
+    overflow-y: auto;
+    background: rgba(20, 12, 6, 0.97);
+    border: 4px solid #ffcc33;
+    box-shadow: 0 0 0 2px #1a0a02, 0 0 0 6px #5a3a20, 0 0 32px rgba(255,170,60,0.4);
+    padding: 24px 28px;
+    color: #ffe066;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  #settingsTitle {
+    font-size: 26px; letter-spacing: 6px; font-weight: bold; text-align: center;
+    text-shadow: 2px 2px 0 var(--red-dark);
+    border-bottom: 2px solid #5a3a20; padding-bottom: 10px;
+  }
+  .settingRow {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 14px; letter-spacing: 1.5px;
+    color: #ddd6c4;
+  }
+  .settingRow input[type="range"] { width: 180px; accent-color: #ffcc33; }
+  .settingRow input[type="checkbox"] { width: 22px; height: 22px; accent-color: #ffcc33; cursor: pointer; }
+  #settingsBackBtn {
+    background: #1a0a02; color: #ffcc33;
+    border: 3px solid #ffcc33;
+    box-shadow: inset 0 0 0 2px #1a0a02, 0 4px 0 #5a3a20;
+    padding: 10px 24px;
+    font-family: inherit; font-size: 14px; font-weight: bold; letter-spacing: 4px;
+    cursor: pointer; align-self: center; margin-top: 8px;
+  }
+  #settingsBackBtn:hover { background: #2a1a0a; color: #ffe066; }
+
+  /* ===== KEYBIND SECTION inside Settings ===== */
+  #keybindSection {
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 2px solid #5a3a20;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #keybindHeader {
+    font-size: 16px; letter-spacing: 4px; font-weight: bold;
+    color: #ffcc33;
+    text-shadow: 2px 2px 0 #1a0a02;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  #keybindList {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 38vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .keybindRow {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; letter-spacing: 1.4px;
+    color: #ddd6c4;
+    padding: 4px 0;
+  }
+  .bindBtn {
+    background: #1a0a02;
+    color: #ffe066;
+    border: 2px solid #5a3a20;
+    border-radius: 3px;
+    padding: 5px 14px;
+    min-width: 110px;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.14s ease;
+    text-align: center;
+  }
+  .bindBtn:hover { border-color: #ffcc33; color: #fff; }
+  .bindBtn.listening {
+    background: #ffcc33; color: #1a0a02;
+    border-color: #ffe066;
+    animation: bindListenPulse 0.6s ease-in-out infinite;
+  }
+  @keyframes bindListenPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 204, 51, 0.6); }
+    50%      { box-shadow: 0 0 14px 2px rgba(255, 204, 51, 0.6); }
+  }
+  #resetBindsBtn {
+    background: #1a0a02; color: #ffcc33;
+    border: 2px solid #5a3a20;
+    border-radius: 3px;
+    padding: 8px 18px;
+    margin-top: 6px;
+    font-family: "Courier New", monospace;
+    font-size: 12px; font-weight: bold; letter-spacing: 3px;
+    cursor: pointer;
+    align-self: center;
+  }
+  #resetBindsBtn:hover { border-color: #ffcc33; color: #ffe066; background: #2a1a0a; }
+
+  /* ===== ZONE FADE ===== */
+  #zoneFade {
+    position: fixed; inset: 0;
+    background: #000; opacity: 0;
+    pointer-events: none; z-index: 40;
+    transition: opacity 0.32s ease-out;
+  }
+  #zoneFade.on { opacity: 1; }
+
